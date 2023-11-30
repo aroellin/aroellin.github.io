@@ -31,7 +31,7 @@ My publications can be found on [Google Scholar](https://scholar.google.com.sg/c
 
 ### Current PhD students
 
-* Imai Ryo
+* [Ryo Imai](https://sites.google.com/view/rimaistat)
 
 ### Past PhD students
 
