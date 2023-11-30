@@ -1,11 +1,1 @@
-title: Homepage of Adrian Röllin
-logo: /img/adrianroellin_portrait_web.jpg
-description: Adrian Roellin\
-Department of Statistics and Data Science\
-National University of Singapore\
-6 Science Drive 2\
-Singapore 117546
-e-mail: adrian.roellin@nus.edu.sg
-show_downloads: false
-google_analytics:
-theme: jekyll-theme-minimal
+remote_theme: "mmistakes/minimal-mistakes@4.24.0"
