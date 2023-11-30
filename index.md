@@ -45,3 +45,7 @@ My publications can be found on [Google Scholar](https://scholar.google.com.sg/c
 * [csgc](https://github.com/lishang-stats/csgc): R and Python packages to calculate centred subgraph count statistics; based on the paper
 [“Higher-order fluctuations in dense random graph models”](https://projecteuclid.org/journals/electronic-journal-of-probability/volume-26/issue-none/Higher-order-fluctuations-in-dense-random-graph-models/10.1214/21-EJP708.full)
 * [RSTISim](https://github.com/aroellin/rstisim): R package to simulate STIs on dynamically changing partnership networks.
+
+## A less serious, but important piece of research nonetheless...
+
+* A. Röllin and M. Zilversmit. [A Test in discernment of Scotch whiskey and Cognac brandy among untrained tasters](/doc/whiskycognac.pdf). 
