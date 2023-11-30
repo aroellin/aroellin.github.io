@@ -9,6 +9,8 @@ Do check out our new [MSc in Data Science for Sustainability](https://www.stat.n
 ## Research Interests
 Distributional approximations in probability theory, Stein’s method, mathematical and statistical modeling of infectious disease processes.
 
+My publications can be found on [Google Scholar](https://scholar.google.com.sg/citations?user=0GNeK6IAAAAJ).
+
 ## Research Group
 
 
