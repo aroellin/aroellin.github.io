@@ -26,7 +26,7 @@ My publications can be found on [Google Scholar](https://scholar.google.com.sg/c
 * [Van Hao Can](https://sites.google.com/site/vanhaocan/home)
 * [Zhuosong Zhang](https://icm.sustech.edu.cn/people/ZhuosongZHANG?lang=en-us)
 * [Gursharn Kaur](https://sites.google.com/view/gursharn/home)
-* [Arturo Jaramillo Gil](https://www.cimat.mx/~jagil/app/dist/Arturo_Jaramillo_Gil_English.html), jointly with University of Luxembourg
+* [Arturo Jaramillo](https://www.cimat.mx/~jagil/app/dist/Arturo_Jaramillo_Gil_English.html), jointly with University of Luxembourg
 * [Xiaochuan Yang](http://xiaochuanyang.com), jointly with University of Luxembourg
 
 ### Current PhD students
