@@ -17,7 +17,7 @@ My publications can be found on [Google Scholar](https://scholar.google.com.sg/c
 ## Research Group
 
 ### Current postdocs
-* Francesca Cottini, jointly with University of Luxembourg, NRF Luxembourg
+* Francesca Cottini, jointly with University of Luxembourg
 
 ### Past postdocs
 
@@ -26,8 +26,8 @@ My publications can be found on [Google Scholar](https://scholar.google.com.sg/c
 * [Van Hao Can](https://sites.google.com/site/vanhaocan/home)
 * [Zhuosong Zhang](https://icm.sustech.edu.cn/people/ZhuosongZHANG?lang=en-us)
 * [Gursharn Kaur](https://sites.google.com/view/gursharn/home)
-* [Arturo Jaramillo Gi;](https://www.cimat.mx/~jagil/app/dist/Arturo_Jaramillo_Gil_English.html), jointly with University of Luxembourg, NRF Luxembourg
-* [Xiaochuan Yang](http://xiaochuanyang.com), jointly with University of Luxembourg, NRF Luxembourg
+* [Arturo Jaramillo Gil](https://www.cimat.mx/~jagil/app/dist/Arturo_Jaramillo_Gil_English.html), jointly with University of Luxembourg
+* [Xiaochuan Yang](http://xiaochuanyang.com), jointly with University of Luxembourg
 
 ### Current PhD students
 
@@ -35,9 +35,9 @@ My publications can be found on [Google Scholar](https://scholar.google.com.sg/c
 
 ### Past PhD students
 
-* Shang Li
-* Wai Hoh Tang
-* Daniel Paulin
+* [Shang Li](https://www.linkedin.com/in/shang-li-statnus/)
+* [Wai Hoh Tang](https://www.linkedin.com/in/wai-hoh-tang)
+* [Daniel Paulin](https://sites.google.com/site/paulindani/)
 
 ## GitHub Projects
 
