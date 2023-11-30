@@ -6,6 +6,7 @@ I'm currently Professor at the [Department of Statistics and Data Science](https
 
 ## News
 
+* The [65th ISI World Statistics Congress](https://www.isi-next.org/conferences/wsc2025/) is going to take place in The Hague, Netherlands, 13–17 July 2025, and I'm honoured to serve as Chair of the Scientific Programme Committee. [Call for Invited Paper Sessions is open](https://www.isi-next.org/conferences/wsc2025/ipsproposals_2025/).
 * Do check out our new [MSc in Data Science for Sustainability](https://www.stat.nus.edu.sg/prospective-students/graduate-programme/msc-in-data-science-for-sustainability/)!
 * We're hiring faculty members in statistics, data science and related areas at tenure track and tenured levels; do not hesitate to contact me or apply through [mathjobs.org](https://www.mathjobs.org/jobs/jobs/22533).
 
