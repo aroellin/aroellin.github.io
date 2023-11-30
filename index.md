@@ -17,7 +17,7 @@ My publications can be found on [Google Scholar](https://scholar.google.com.sg/c
 ## Research Group
 
 ### Current postdocs
-* Francesca Cottini, jointly with University of Luxembourg
+* [Francesca Cottini](https://sites.google.com/view/francescacottini/home-page), jointly with University of Luxembourg
 
 ### Past postdocs
 
