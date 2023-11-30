@@ -23,11 +23,11 @@ My publications can be found on [Google Scholar](https://scholar.google.com.sg/c
 
 * Yuanfei Huang
 * Tianshu Cong
-* Van Hao Can
-* Zhuosong Zhang
-* Gursharn Kaur
-* Arturo Jaramillo Gil, jointly with University of Luxembourg, NRF Luxembourg
-* Xiaochuan Yang, jointly with University of Luxembourg, NRF Luxembourg
+* [Van Hao Can](https://sites.google.com/site/vanhaocan/home)
+* [Zhuosong Zhang](https://icm.sustech.edu.cn/people/ZhuosongZHANG?lang=en-us)
+* [Gursharn Kaur](https://sites.google.com/view/gursharn/home)
+* [Arturo Jaramillo Gi;](https://www.cimat.mx/~jagil/app/dist/Arturo_Jaramillo_Gil_English.html), jointly with University of Luxembourg, NRF Luxembourg
+* [Xiaochuan Yang](http://xiaochuanyang.com), jointly with University of Luxembourg, NRF Luxembourg
 
 ### Current PhD students
 
