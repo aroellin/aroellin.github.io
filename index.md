@@ -20,7 +20,7 @@ My publications can be found on [Google Scholar](https://scholar.google.com.sg/c
 ### Current postdocs
 * [Francesca Cottini](https://sites.google.com/view/francescacottini/home-page), jointly with University of Luxembourg
 
-### Past postdocs
+### Former postdocs
 
 * Yuanfei Huang
 * Tianshu Cong
@@ -34,7 +34,7 @@ My publications can be found on [Google Scholar](https://scholar.google.com.sg/c
 
 * [Ryo Imai](https://sites.google.com/view/rimaistat)
 
-### Past PhD students
+### Former PhD students
 
 * [Shang Li](https://www.linkedin.com/in/shang-li-statnus/)
 * [Wai Hoh Tang](https://www.linkedin.com/in/wai-hoh-tang)
