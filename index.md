@@ -6,7 +6,8 @@ I'm currently Professor at the [Department of Statistics and Data Science](https
 
 ## News
 
-* The [65th ISI World Statistics Congress](https://www.isi-next.org/conferences/wsc2025/) is going to take place in The Hague, Netherlands, 5-9 October 2025 (new dates!), and I'm honoured to serve as Chair of the Scientific Programme Committee. <!-- [Call for Invited Paper Sessions Proposals is open](https://www.isi-next.org/conferences/wsc2025/ipsproposals_2025/)! -->
+* The [65th ISI World Statistics Congress](https://www.isi-next.org/conferences/wsc2025/) is going to take place in The Hague, Netherlands, 5-9 October 2025 (new dates!), and I'm honoured to serve as Chair of the Scientific Programme Committee. 
+[Call for Contributed Papers is now open](https://www.isi-next.org/conferences/isi-wsc2025/contributed-paper-poster-submission/)! 
 * Do check out our new [MSc in Data Science for Sustainability](https://www.stat.nus.edu.sg/prospective-students/graduate-programme/msc-in-data-science-for-sustainability/)!
 * We have tenure-track positions in statistics, data science and related areas; do not hesitate to contact me or apply through [mathjobs.org](https://www.mathjobs.org/jobs/jobs/22533).
 * Our department is offering new departmental postdoc positions! Do not hesitate to contact me or apply through [mathjobs.org](https://www.mathjobs.org/jobs/jobs/24017).
@@ -24,7 +25,7 @@ My publications can be found on [Google Scholar](https://scholar.google.com.sg/c
 
 ### Former postdocs
 
-* Yuanfei Huang
+* [Yuanfei Huang](https://scholar.google.com/citations?user=kj72rooAAAAJ)
 * Tianshu Cong
 * [Van Hao Can](https://sites.google.com/site/vanhaocan/home)
 * [Zhuosong Zhang](https://icm.sustech.edu.cn/people/ZhuosongZHANG?lang=en-us)
