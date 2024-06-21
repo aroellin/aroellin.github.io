@@ -2,7 +2,7 @@
 layout: default
 ---
 
-I'm currently Professor at the [Department of Statistics and Data Science](https://www.stat.nus.edu.sg) at the [National University of Singapore](https://www.nus.edu.sg), and I'm also the head of the department. 
+I'm currently Professor at the [Department of Statistics and Data Science](https://www.stat.nus.edu.sg) at the [National University of Singapore](https://www.nus.edu.sg).
 
 ## News
 
