@@ -1,0 +1,131 @@
+---
+title: "ST5225 Statistical Analysis of Networks"
+subtitle: |
+  | AY2024/25, Semester 1 
+  | Week 1 --- Introduction to Networks
+author: "Adrian Roellin"
+institute: "Department of Statistics and Data Science, National University of Singapore"
+format: 
+  revealjs:
+    theme: simple
+    incremental: true
+    scrollable: true
+    smaller: true
+    chalkboard: 
+      theme: whiteboard
+      boardmarker-width: 2
+---
+
+## What are networks?
+![](img/week_01_lecture_img_01.png)
+
+- A network is a data structure that captures **relationships** between **objects**, **individuals**, or **entities**.
+- The objects are called "nodes".
+- The relationships are called "links".
+- In the mathematical literature, networks are called "graphs", nodes are called "vertices" and links are called "edges".
+- For this course, we will use these terms interchangeably.
+
+## Examples of networks
+![](img/week_01_lecture_img_03.png)
+
+## Directed and undirected networks
+![](img/week_01_lecture_img_02.png)
+
+- Links can have directions.
+- The resulting networks are sometimes referred to as "digraphs".
+
+## Networks with vertex and/or edge weights/attributes {background-image="img/week_01_lecture_img_08.png" background-opacity=0.3}
+<!-- ![](img/week_01_lecture_img_08.png) -->
+
+- Networks can have additional information, called "attributes".
+- Nodes = MRT Stations.
+- Node attributes: Geographic location, number of people living within a 2km radius, number of passengers per day, etc.
+- Links = MRT Tracks.
+- Link attributes: Distance between MRT stations, maximal speed, number of passengers per day, etc.
+
+## Walks and paths
+![](img/week_01_lecture_img_21.png)
+
+- A walk is a sequence of edges "going from one vertex to another".
+- A path is a walk without visiting any vertex more than once. (A--G--F--E--D is a path between A and D)
+- A cycle (sometimes called "loop") is a path starting and ending in the same vertex. (G--F--E--D--G is a cycle)
+- "Length" of a path is the number of edges in it. We can therefore talk of a "shortest path". (A--G--D is a shortest path between A and D)
+- In directed graphs, typically only paths following the "correct" directions of the edges are considered paths.
+
+## Trees
+![](img/week_01_lecture_img_09.png)
+
+- Trees are networks without "loops".
+- They sometimes have a distinguished node called the "root".
+
+## Bipartite graphs
+![](img/week_01_lecture_img_10.jpg)
+
+- Networks with two types of vertices, with edges only across the types, but not within the types.
+- Bipartite networks occur whenever two types of entities interact: customers buying from merchants, customers buying items, users visiting webpages.
+
+## Hypergraphs
+![](img/week_01_lecture_img_11.png)
+
+- A hypergraph occurs whenever the relationships involve more than two entities.
+- A hypergraph can be converted into a graph, although information will be lost.
+
+## Multiple edges and loops
+![](img/week_01_lecture_img_12.png)
+
+- Two vertices can have more than one edge ⟹ multi-edge.
+- A vertex can be connected to itself ⟹ (self-)loop.
+- A graph without multiple edges and without loops is called "simple". Simple graphs are **the default**.
+- Any such graph can be turned into a simple graph by removing loops and "collapsing" multiple edges into one edge.
+
+## (Connected) Components
+![](img/week_01_lecture_img_13.jpg)
+
+- A component (sometimes "connected component") is a subset of a network where each node can be reached by each other node in the component.
+- The Jefferson romantic relationship network has multiple components.
+- For directed networks, the definition of components becomes more complicated.
+- A network is called *connected* if it has only one component.
+
+## Adjacency matrix
+![](img/week_01_lecture_img_14.png)
+
+- A graph can be represented by its "adjacency matrix".
+- Many properties of a graph can be computed using its adjacency matrix.
+- It's usually not an efficient way to store network data in a computer, though, especially if the network is "sparse", that is, if most entries in the matrix are zero.
+
+## From raw data to network data
+![](img/week_01_lecture_img_15.png){width=15%}
+![](img/week_01_lecture_img_16.png){width=15%}
+
+- Records of contacts among patients and various types of health care workers in a hospital in Lyon, France, in 2010, over the course of a few days. Each of the 75 people in this study wore RFID sensors on small identification badges during this period, which made it possible to record when any two of them were in face-to-face contact with each other (i.e., within 1-1.5 m of each other) during a 20-second interval of time.
+- Real network data has to be processed to create a network, and most of the time, there are more than one way to generate a graph.
+
+## Variant 1
+![](img/week_01_lecture_img_17.png)
+
+- Each vertex is a person.
+- There is an edge if there was at least one encounter between two persons during the observation period.
+
+## Variant 2
+![](img/week_01_lecture_img_18.png)
+
+- Edge between two persons if there was an encounter within a 4-hour interval.
+- Results in a sequence of networks.
+
+## Variant 3
+![](img/week_01_lecture_img_19.png)
+
+- Link between two persons if the number of encounters exceeds the 75th percentile.
+- Isolated nodes removed.
+
+## Variant 4
+![](img/week_01_lecture_img_20.png)
+
+- Weighted graph, where link weights equal number of interactions.
+- Plotted according to edge weight (white = no link = no encounter, black = maximal number of encounters).
+
+## From raw data to network data
+- There isn't "one correct way" to turn raw data into a network representation.
+- How you should construct the network depends on the question you are trying to answer.
+- A data scientist often tries multiple options and then decides what is most suitable.
+- The rule of thumb is to transfer as much as possible of the raw data to the network by adding edge and vertex attributes, and then simplify the network depending on the desired analysis or visualisation.
