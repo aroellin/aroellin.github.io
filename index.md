@@ -19,11 +19,11 @@ My publications can be found on [Google Scholar](https://scholar.google.com.sg/c
 
 ## Research Group
 
-### Current postdocs
-* [Francesca Cottini](https://sites.google.com/view/francescacottini/home-page), jointly with University of Luxembourg
+<!-- ### Current postdocs -->
 
 ### Former postdocs
 
+* [Francesca Cottini](https://sites.google.com/view/francescacottini/home-page), jointly with University of Luxembourg
 * [Yuanfei Huang](https://scholar.google.com/citations?user=kj72rooAAAAJ)
 * Tianshu Cong
 * [Van Hao Can](https://sites.google.com/site/vanhaocan/home)
@@ -41,6 +41,10 @@ My publications can be found on [Google Scholar](https://scholar.google.com.sg/c
 * [Shang Li](https://www.linkedin.com/in/shang-li-statnus/)
 * [Wai Hoh Tang](https://www.linkedin.com/in/wai-hoh-tang)
 * [Daniel Paulin](https://sites.google.com/site/paulindani/)
+
+### Visiting Students
+
+* Côme Le Réveillé, École Normale Supérieure
 
 ## GitHub Projects
 
