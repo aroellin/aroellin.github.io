@@ -2,30 +2,45 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <!-- Crucial for responsive design on mobile -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Guess the Rule</title>
     <style>
+        /* Apply box-sizing globally for easier width calculations */
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             font-family: sans-serif;
-            max-width: 600px;
-            margin: 20px auto;
+            /* Use percentage for flexibility, limit max width on desktop */
+            width: 95%;
+            max-width: 600px; /* Keep a max-width for larger screens */
+            margin: 15px auto; /* Adjusted margin */
             padding: 15px;
             border: 1px solid #ccc;
             border-radius: 8px;
             background-color: #f9f9f9;
+            font-size: 16px; /* Set a base font size good for mobile */
         }
         h1, h2 {
             text-align: center;
             color: #333;
         }
+        /* Adjust heading sizes slightly relative to base font */
+        h1 { font-size: 1.8em; }
+        h2 { font-size: 1.4em; margin-top: 0;}
+
         p {
             text-align: center;
             margin-bottom: 20px;
+            line-height: 1.5; /* Improve readability */
         }
         .input-area label {
             display: block;
             margin-bottom: 10px;
             font-weight: bold;
+            text-align: center; /* Center label */
         }
         .input-container {
             display: flex;
@@ -33,19 +48,25 @@
             align-items: center;
             margin-bottom: 15px;
             gap: 10px; /* Space between input boxes */
+            /* Allow inputs to wrap onto the next line on narrow screens */
+            flex-wrap: wrap;
         }
         .input-container input[type="number"] {
-            width: 60px;
-            padding: 8px;
+             /* Use ems for width relative to font size, allow shrinking/growing */
+            width: 4.5em;
+            /* Increase padding for larger touch target */
+            padding: 10px 8px;
             text-align: center;
             border: 1px solid #ccc;
             border-radius: 4px;
-            /* Hide spinners for a cleaner look (optional) */
-            -moz-appearance: textfield; /* Firefox */
+            /* Increase font size slightly within inputs */
+            font-size: 1.1em;
+            /* Hide spinners (optional but often cleaner on mobile) */
+            -moz-appearance: textfield;
         }
         .input-container input[type="number"]::-webkit-outer-spin-button,
         .input-container input[type="number"]::-webkit-inner-spin-button {
-            -webkit-appearance: none; /* Safari and Chrome */
+            -webkit-appearance: none;
             margin: 0;
         }
         .button-container {
@@ -53,37 +74,44 @@
             margin-bottom: 20px;
         }
         button {
-            padding: 10px 20px;
-            font-size: 1em;
+             /* Increase padding significantly for easy tapping */
+            padding: 12px 24px;
+            /* Increase font size for button text */
+            font-size: 1.1em;
             cursor: pointer;
             background-color: #007bff;
             color: white;
             border: none;
             border-radius: 5px;
             transition: background-color 0.2s;
+            width: 80%; /* Make button wider on mobile */
+            max-width: 300px; /* Limit width on larger screens */
         }
         button:hover {
             background-color: #0056b3;
         }
         #feedback {
             text-align: center;
-            font-size: 1.2em;
-            min-height: 25px; /* Prevent layout shift */
+            font-size: 1.1em; /* Slightly larger feedback text */
+            min-height: 25px;
             margin-bottom: 15px;
-            color: red; /* Default color for error messages */
+            color: red;
+            font-weight: bold; /* Make feedback stand out */
         }
         #history {
             border-top: 1px solid #eee;
             padding-top: 15px;
             margin-top: 20px;
         }
+        /* Removed margin-top from h2 directly inside #history */
         #history h2 {
-            margin-top: 0;
+             margin-bottom: 10px; /* Add some space below history heading */
         }
+
         #history-list {
             list-style: none;
             padding: 0;
-            max-height: 300px; /* Limit height and add scroll */
+            max-height: 300px;
             overflow-y: auto;
             border: 1px solid #eee;
             padding: 10px;
@@ -91,23 +119,29 @@
             border-radius: 4px;
         }
         #history-list li {
-            padding: 8px 5px;
+            padding: 10px 5px; /* Slightly more vertical padding */
             border-bottom: 1px solid #f0f0f0;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            /* Allow sequence text to wrap if very long */
+            flex-wrap: wrap;
+            gap: 5px; /* Add gap if items wrap */
         }
          #history-list li:last-child {
             border-bottom: none;
         }
         .sequence-text {
-            font-family: monospace; /* Make numbers align better */
+            font-family: monospace;
             font-size: 1.1em;
-            margin-right: 15px;
+            margin-right: 10px; /* Reduced margin slightly */
             color: #555;
+            word-break: break-all; /* Break long sequences if needed */
         }
         .result-icon {
-            font-size: 1.5em; /* Make icons larger */
+            font-size: 1.5em;
+            /* Prevent icon from shrinking */
+            flex-shrink: 0;
         }
         .tick {
             color: green;
@@ -115,7 +149,7 @@
         .cross {
             color: red;
         }
-        .info { /* Kept in case you want informational messages later */
+        .info {
              font-style: italic;
              color: #666;
         }
@@ -125,7 +159,6 @@
 
     <h1>Guess the Rule!</h1>
     <p>Enter a sequence of numbers to see if it satisfies the hidden rule.</p>
-    <!-- Removed the specific example text from here -->
 
     <div class="input-area">
         <label for="num1">Enter your test sequence:</label>
@@ -155,7 +188,7 @@
     <script>
         // --- Configuration ---
         const NUM_INPUTS = 5; // Match the number of input boxes in HTML
-        const RULE_DESCRIPTION = "The sequence must be strictly increasing."; // Keep this hidden from the user in a real scenario
+        const RULE_DESCRIPTION = "The sequence must be strictly increasing.";
 
         // --- DOM Elements ---
         const inputElements = [];
@@ -167,11 +200,6 @@
         const historyList = document.getElementById('history-list');
 
         // --- Rule Logic ---
-        /**
-         * Checks if a sequence of numbers is strictly increasing.
-         * @param {number[]} sequence - An array of numbers.
-         * @returns {boolean} - True if strictly increasing, false otherwise.
-         */
         function isStrictlyIncreasing(sequence) {
             if (sequence.length < 2) {
                 return true;
@@ -231,7 +259,9 @@
             // 6. Clear the input fields after a successful test
             inputElements.forEach(input => input.value = '');
 
-            // Optional: Set focus back to the first input
+            // Optional: Set focus back to the first input. Can be slightly annoying
+            // on mobile as it forces the keyboard up, but can also be convenient.
+            // Keep it for now unless it proves problematic in testing.
             if (inputElements.length > 0) {
                 inputElements[0].focus();
             }
@@ -255,26 +285,23 @@
             iconSpan.className = `result-icon ${iconClass}`;
             iconSpan.textContent = icon;
 
-            if (isInfo) { // Check if it's marked as an info entry
+            if (isInfo) {
                  listItem.classList.add('info');
-                 listItem.textContent = sequenceStr; // Just show the info text
+                 listItem.textContent = sequenceStr;
             } else {
                 listItem.appendChild(sequenceSpan);
                 listItem.appendChild(iconSpan);
             }
 
-            // Prepend to show the latest entry at the top
             historyList.prepend(listItem);
         }
 
         // --- Initial Setup ---
         function initialize() {
-             // Add an initial example sequence to the history on load
-             const exampleSequence = [1, 2, 4, 7, 11]; // Updated sequence
+             const exampleSequence = [2, 5, 9, 14, 20];
              const satisfiesRule = isStrictlyIncreasing(exampleSequence);
              const resultIcon = satisfiesRule ? '✅' : '❌';
              const iconClass = satisfiesRule ? 'tick' : 'cross';
-             // Add it like a regular entry, without the "Given:" prefix
              addHistoryEntry(exampleSequence.join(', '), resultIcon, iconClass);
         }
 
