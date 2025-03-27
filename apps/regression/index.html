@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Regression Game</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Load D3.js library -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+    <h1>Fit the Line!</h1>
+    <p>Drag the <strong>red handles</strong> to position the line and fit the blue training data points. Then, press "Test My Line" to see how well it predicts new data!</p>
+
+    <div id="chart-container">
+        <svg id="chart"></svg>
+    </div>
+
+    <div id="controls">
+        <button id="test-button">Test My Line!</button>
+        <button id="reset-button">New Training Data</button>
+    </div>
+
+    <div id="score-area">
+        <h2>Score:</h2>
+        <p id="score">MSE: ---</p>
+        <p id="score-feedback"></p>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
