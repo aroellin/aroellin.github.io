@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guess the Rule</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+        h1, h2 {
+            text-align: center;
+            color: #333;
+        }
+        p {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .input-area label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        .input-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 15px;
+            gap: 10px; /* Space between input boxes */
+        }
+        .input-container input[type="number"] {
+            width: 60px;
+            padding: 8px;
+            text-align: center;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            /* Hide spinners for a cleaner look (optional) */
+            -moz-appearance: textfield; /* Firefox */
+        }
+        .input-container input[type="number"]::-webkit-outer-spin-button,
+        .input-container input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none; /* Safari and Chrome */
+            margin: 0;
+        }
+        .button-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 1em;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #feedback {
+            text-align: center;
+            font-size: 1.2em;
+            min-height: 25px; /* Prevent layout shift */
+            margin-bottom: 15px;
+            color: red; /* Default color for error messages */
+        }
+        #history {
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+            margin-top: 20px;
+        }
+        #history h2 {
+            margin-top: 0;
+        }
+        #history-list {
+            list-style: none;
+            padding: 0;
+            max-height: 300px; /* Limit height and add scroll */
+            overflow-y: auto;
+            border: 1px solid #eee;
+            padding: 10px;
+            background-color: #fff;
+            border-radius: 4px;
+        }
+        #history-list li {
+            padding: 8px 5px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+         #history-list li:last-child {
+            border-bottom: none;
+        }
+        .sequence-text {
+            font-family: monospace; /* Make numbers align better */
+            font-size: 1.1em;
+            margin-right: 15px;
+            color: #555;
+        }
+        .result-icon {
+            font-size: 1.5em; /* Make icons larger */
+        }
+        .tick {
+            color: green;
+        }
+        .cross {
+            color: red;
+        }
+        .info { /* Kept in case you want informational messages later */
+             font-style: italic;
+             color: #666;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Guess the Rule!</h1>
+    <p>Enter a sequence of numbers to see if it satisfies the hidden rule.</p>
+    <!-- Removed the specific example text from here -->
+
+    <div class="input-area">
+        <label for="num1">Enter your test sequence:</label>
+        <div class="input-container">
+            <input type="number" id="num1" aria-label="First number">
+            <input type="number" id="num2" aria-label="Second number">
+            <input type="number" id="num3" aria-label="Third number">
+            <input type="number" id="num4" aria-label="Fourth number">
+            <input type="number" id="num5" aria-label="Fifth number">
+            <!-- Add more inputs here if desired -->
+        </div>
+    </div>
+
+    <div id="feedback"></div>
+
+    <div class="button-container">
+        <button id="testButton">Test Sequence</button>
+    </div>
+
+    <div id="history">
+        <h2>History</h2>
+        <ul id="history-list">
+             <!-- History items will be added here by JavaScript -->
+        </ul>
+    </div>
+
+    <script>
+        // --- Configuration ---
+        const NUM_INPUTS = 5; // Match the number of input boxes in HTML
+        const RULE_DESCRIPTION = "The sequence must be strictly increasing."; // Keep this hidden from the user in a real scenario
+
+        // --- DOM Elements ---
+        const inputElements = [];
+        for (let i = 1; i <= NUM_INPUTS; i++) {
+            inputElements.push(document.getElementById(`num${i}`));
+        }
+        const testButton = document.getElementById('testButton');
+        const feedbackDiv = document.getElementById('feedback');
+        const historyList = document.getElementById('history-list');
+
+        // --- Rule Logic ---
+        /**
+         * Checks if a sequence of numbers is strictly increasing.
+         * @param {number[]} sequence - An array of numbers.
+         * @returns {boolean} - True if strictly increasing, false otherwise.
+         */
+        function isStrictlyIncreasing(sequence) {
+            if (sequence.length < 2) {
+                return true;
+            }
+            for (let i = 1; i < sequence.length; i++) {
+                if (sequence[i] <= sequence[i - 1]) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // --- Event Listener ---
+        testButton.addEventListener('click', () => {
+            feedbackDiv.textContent = '';
+            const sequence = [];
+            const sequenceStrings = [];
+            let allInputsValid = true;
+
+            // 1. Read and validate inputs
+            for (let i = 0; i < NUM_INPUTS; i++) {
+                const valueStr = inputElements[i].value;
+                if (valueStr === '') {
+                    allInputsValid = false;
+                    break;
+                }
+                const valueNum = parseInt(valueStr, 10);
+                if (isNaN(valueNum)) {
+                    allInputsValid = false;
+                    break;
+                }
+                sequence.push(valueNum);
+                sequenceStrings.push(valueStr);
+            }
+
+            // 2. Provide feedback if input is invalid
+            if (!allInputsValid) {
+                feedbackDiv.textContent = `Please enter a valid number in all ${NUM_INPUTS} boxes.`;
+                return;
+            }
+
+             if (sequence.length < 2) {
+                feedbackDiv.textContent = `Please enter at least two numbers to test the rule.`;
+                return;
+            }
+
+            // 3. Apply the rule
+            const satisfiesRule = isStrictlyIncreasing(sequence);
+
+            // 4. Determine feedback icon
+            const resultIcon = satisfiesRule ? '✅' : '❌';
+            const iconClass = satisfiesRule ? 'tick' : 'cross';
+
+            // 5. Add to history (prepend for newest first)
+            addHistoryEntry(sequenceStrings.join(', '), resultIcon, iconClass);
+
+            // 6. Clear the input fields after a successful test
+            inputElements.forEach(input => input.value = '');
+
+            // Optional: Set focus back to the first input
+            if (inputElements.length > 0) {
+                inputElements[0].focus();
+            }
+        });
+
+         /**
+         * Adds an entry to the history list in the UI.
+         * @param {string} sequenceStr - The sequence as a string (e.g., "2, 5, 8").
+         * @param {string} icon - The result icon ('✅' or '❌').
+         * @param {string} iconClass - The CSS class for the icon ('tick' or 'cross').
+         * @param {boolean} isInfo - Optional flag for informational entries.
+         */
+        function addHistoryEntry(sequenceStr, icon, iconClass, isInfo = false) {
+            const listItem = document.createElement('li');
+
+            const sequenceSpan = document.createElement('span');
+            sequenceSpan.className = 'sequence-text';
+            sequenceSpan.textContent = sequenceStr;
+
+            const iconSpan = document.createElement('span');
+            iconSpan.className = `result-icon ${iconClass}`;
+            iconSpan.textContent = icon;
+
+            if (isInfo) { // Check if it's marked as an info entry
+                 listItem.classList.add('info');
+                 listItem.textContent = sequenceStr; // Just show the info text
+            } else {
+                listItem.appendChild(sequenceSpan);
+                listItem.appendChild(iconSpan);
+            }
+
+            // Prepend to show the latest entry at the top
+            historyList.prepend(listItem);
+        }
+
+        // --- Initial Setup ---
+        function initialize() {
+             // Add an initial example sequence to the history on load
+             const exampleSequence = [1, 2, 4, 7, 11]; // Updated sequence
+             const satisfiesRule = isStrictlyIncreasing(exampleSequence);
+             const resultIcon = satisfiesRule ? '✅' : '❌';
+             const iconClass = satisfiesRule ? 'tick' : 'cross';
+             // Add it like a regular entry, without the "Given:" prefix
+             addHistoryEntry(exampleSequence.join(', '), resultIcon, iconClass);
+        }
+
+        // Run initialization when the DOM is ready
+        document.addEventListener('DOMContentLoaded', initialize);
+
+    </script>
+
+</body>
+</html>
