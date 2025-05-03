@@ -95,7 +95,7 @@ const answers = [
 
 function preload() {
     // Load images (adjust paths if needed)
-    this.load.svg('backdrop1', 'assets/backdrop1.svg', { width: 480, height: 360 });
+    this.load.svg('backdrop1', 'assets/apple.svg', { width: 480, height: 360 });
     this.load.svg('backdrop2', 'assets/backdrop2.svg', { width: 480, height: 360 });
     this.load.svg('bin', 'assets/bin.svg', { width: 154, height: 178 }); // Original size, will scale later
 
@@ -117,7 +117,7 @@ function preload() {
 
 function create() {
     // Set background (using backdrop1 initially)
-    this.add.image(240, 180, 'backdrop1'); // Centered
+    this.add.image(240, 180, 'backdrop2'); // Centered
 
     // Create player (Bin)
     // Initial position from Scratch: x=0, y=-135 (bottom center)
