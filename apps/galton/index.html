@@ -10,33 +10,44 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
+            min-height: 100vh; /* Ensure body takes full height */
             margin: 0;
-            background-color: #222; /* Dark background for contrast */
+            background-color: #222;
             font-family: sans-serif;
             flex-direction: column;
+            overflow: hidden; /* Prevent scrollbars if canvas is slightly too big during resize flicker */
         }
         #controls {
             margin-bottom: 10px;
             color: #fff;
+            text-align: center; /* Center buttons */
+            flex-shrink: 0; /* Prevent controls from shrinking */
+            padding: 5px;
         }
         #controls button {
-            padding: 8px 15px;
-            margin: 0 5px;
+            padding: 8px 12px; /* Slightly smaller padding for mobile */
+            margin: 2px 3px;   /* Smaller margins */
             cursor: pointer;
+            font-size: 0.9em; /* Slightly smaller font */
+        }
+        #ballCount {
+            display: inline-block;
+            margin-left: 10px;
+            font-size: 0.9em;
         }
         canvas {
             border: 1px solid #555;
+            display: block; /* Remove extra space below canvas */
         }
     </style>
 </head>
 <body>
     <div id="controls">
         <button id="addBallBtn">Add Ball</button>
-        <button id="add10BallsBtn">Add 10 Balls</button>
-        <button id="startAutoDropBtn">Start Auto Drop</button>
-        <button id="stopAutoDropBtn">Stop Auto Drop</button>
-        <button id="resetBtn">Reset Board</button>
+        <button id="add10BallsBtn">Add 10</button>
+        <button id="startAutoDropBtn">Auto</button>
+        <button id="stopAutoDropBtn">Stop</button>
+        <button id="resetBtn">Reset</button>
         <span id="ballCount">Balls: 0</span>
     </div>
     <canvas id="galtonCanvas"></canvas>
@@ -48,49 +59,53 @@
         const Runner = Matter.Runner;
         const Bodies = Matter.Bodies;
         const Composite = Matter.Composite;
-        const Events = Matter.Events;
 
-        // --- Simulation Constants ---
-        const CANVAS_WIDTH = 500;
-        const CANVAS_HEIGHT = 700;
+        // --- Static Configuration Constants ---
+        const COLOR_STRUCT_ORIGINAL = '#FFFF00'; 
+        const COLOR_STRUCT = '#555555'; 
+        const COLOR_PEG = '#FF0000';    
+        const COLOR_BALL = '#333333';   
+        const COLOR_BACKGROUND = '#FFFFFF'; 
 
-        // Colors
-        const COLOR_STRUCT = '#555555'; // Grey
-        const COLOR_PEG = '#FF0000';    // Red
-        const COLOR_BALL = '#333333';   // Dark Grey/Black
-        const COLOR_BACKGROUND = '#FFFFFF'; // White canvas background
-
-        // Element Properties
-        const WALL_THICKNESS = 15;
+        const WALL_THICKNESS = 15; 
         const PEG_RADIUS = 5;
         const BALL_RADIUS = 6; 
+        const BIN_DIVIDER_THICKNESS = 3;
+        const FUNNEL_WALL_THICKNESS = 10;
 
         const NUM_PEG_ROWS = 17;
-        const PEG_SPACING_Y = 23; 
-        const FIRST_PEG_ROW_Y = 140; // Adjusted slightly for funnel
-
         const NUM_BINS = 11; 
-        const BIN_DIVIDER_THICKNESS = 3;
-        const BIN_HEIGHT = 150;
-
-        const TOP_FUNNEL_WIDTH_ENTRY = BALL_RADIUS * 4; 
-        const TOP_FUNNEL_HEIGHT = 50; // Vertical height of the funnel structure
-        const TOP_FUNNEL_SLOPE_ANGLE = Math.PI / 5; // Angle of funnel walls (e.g., 36 degrees)
-        const FUNNEL_WALL_THICKNESS = 10;
+        
+        const TOP_FUNNEL_SLOPE_ANGLE = Math.PI / 5; 
 
         // Physics Properties
         const BALL_RESTITUTION = 0.5;
         const BALL_FRICTION = 0.01; 
-        const BALL_DENSITY = 3;
-
+        const BALL_DENSITY = 3; 
         const PEG_RESTITUTION = 0.5;
         const PEG_FRICTION = 0.05;
 
-        // --- Global Variables ---
+        // --- Proportional Scaling Factors & Peg Spacing ---
+        const FIRST_PEG_ROW_Y_FACTOR = 0.20;    // Relative to canvasHeight
+        const PEG_SPACING_Y_FACTOR = 0.033;     // Relative to canvasHeight
+        const PEG_HORIZ_SPACING_FACTOR_BALL = 4.0; // Multiplier for BALL_RADIUS to set horizontal distance between peg centers.
+                                                // Smaller (e.g. 2.5) = denser pegs, larger (e.g. 5.0) = sparser.
+        const BIN_HEIGHT_FACTOR = 0.21;         // Relative to canvasHeight
+        const TOP_FUNNEL_HEIGHT_FACTOR = 0.07;  // Relative to canvasHeight
+
+        // --- Dynamic Variables (calculated based on screen size) ---
+        let canvasWidth;
+        let canvasHeight;
+        let firstPegRowY, pegSpacingY, binHeight, topFunnelHeight;
+        let topFunnelWidthEntry; 
+
+
+        // --- Global Matter.js Instances ---
         let engine;
         let render;
         let runner;
         let world;
+        
         let ballDropIntervalId = null;
         let ballCounter = 0;
 
@@ -103,8 +118,64 @@
         const resetBtn = document.getElementById('resetBtn');
         const ballCountDisplay = document.getElementById('ballCount');
 
-        // --- Initialization ---
-        function init() {
+        // --- Debounce Function ---
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // --- Core Functions ---
+        function updateDynamicDimensions() {
+            const controlsElement = document.getElementById('controls');
+            const controlsHeight = controlsElement ? controlsElement.offsetHeight : 60;
+            
+            const availableWidth = window.innerWidth - 20; 
+            const availableHeight = window.innerHeight - controlsHeight - 30; 
+
+            const targetAspectRatio = 5 / 7; 
+            let newCanvasWidth, newCanvasHeight;
+
+            if (availableWidth / availableHeight > targetAspectRatio) {
+                newCanvasHeight = Math.max(250, availableHeight); 
+                newCanvasWidth = newCanvasHeight * targetAspectRatio;
+            } else {
+                newCanvasWidth = Math.max(200, availableWidth); 
+                newCanvasHeight = newCanvasWidth / targetAspectRatio;
+            }
+            
+            canvasWidth = Math.min(newCanvasWidth, 500);
+            canvasHeight = Math.min(newCanvasHeight, 700);
+            
+            canvasWidth = Math.min(canvasWidth, availableWidth);
+            canvasHeight = Math.min(canvasHeight, availableHeight);
+
+
+            canvas.width = Math.round(canvasWidth); 
+            canvas.height = Math.round(canvasHeight);
+
+            firstPegRowY = canvasHeight * FIRST_PEG_ROW_Y_FACTOR;
+            pegSpacingY = canvasHeight * PEG_SPACING_Y_FACTOR;
+            binHeight = canvasHeight * BIN_HEIGHT_FACTOR;
+            topFunnelHeight = canvasHeight * TOP_FUNNEL_HEIGHT_FACTOR;
+            topFunnelWidthEntry = BALL_RADIUS * 4; 
+        }
+
+        function setupSimulation() {
+            updateDynamicDimensions();
+
+            if (engine) { 
+                Render.stop(render);
+                Runner.stop(runner);
+                Engine.clear(engine); 
+            }
+
             engine = Engine.create();
             world = engine.world;
             engine.gravity.y = 1; 
@@ -113,87 +184,59 @@
                 canvas: canvas,
                 engine: engine,
                 options: {
-                    width: CANVAS_WIDTH,
-                    height: CANVAS_HEIGHT,
+                    width: canvasWidth,
+                    height: canvasHeight,
                     wireframes: false,
-                    background: COLOR_BACKGROUND
+                    background: COLOR_BACKGROUND,
+                    pixelRatio: window.devicePixelRatio || 1 
                 }
             });
 
             runner = Runner.create();
 
             addStaticElements();
-            addPegs(); // Using refined peg logic
+            addPegs();
 
             Render.run(render);
             Runner.run(runner, engine);
 
-            addBallBtn.onclick = () => dropBall();
-            add10BallsBtn.onclick = () => {
-                for (let i = 0; i < 10; i++) {
-                    setTimeout(() => dropBall(), i * 50); 
-                }
-            };
-            startAutoDropBtn.onclick = startAutoDrop;
-            stopAutoDropBtn.onclick = stopAutoDrop;
-            resetBtn.onclick = resetSimulation;
-
+            ballCounter = 0; 
             updateBallCountDisplay();
+            if (ballDropIntervalId) { 
+                stopAutoDrop(); 
+            }
+            startAutoDropBtn.disabled = false; 
+            stopAutoDropBtn.disabled = true;
         }
-
-        // --- Element Creation ---
+        
         function addStaticElements() {
             const staticOptions = {
                 isStatic: true,
-                render: { fillStyle: COLOR_STRUCT },
+                render: { fillStyle: COLOR_STRUCT }, 
                 restitution: 0.1, 
                 friction: 0.5
             };
 
-            Composite.add(world, Bodies.rectangle(
-                CANVAS_WIDTH / 2, CANVAS_HEIGHT - WALL_THICKNESS / 2,
-                CANVAS_WIDTH, WALL_THICKNESS, staticOptions ));
-            Composite.add(world, Bodies.rectangle(
-                WALL_THICKNESS / 2, CANVAS_HEIGHT / 2,
-                WALL_THICKNESS, CANVAS_HEIGHT, staticOptions ));
-            Composite.add(world, Bodies.rectangle(
-                CANVAS_WIDTH - WALL_THICKNESS / 2, CANVAS_HEIGHT / 2,
-                WALL_THICKNESS, CANVAS_HEIGHT, staticOptions ));
+            Composite.add(world, Bodies.rectangle( canvasWidth / 2, canvasHeight - WALL_THICKNESS / 2, canvasWidth, WALL_THICKNESS, staticOptions ));
+            Composite.add(world, Bodies.rectangle( WALL_THICKNESS / 2, canvasHeight / 2, WALL_THICKNESS, canvasHeight, staticOptions ));
+            Composite.add(world, Bodies.rectangle( canvasWidth - WALL_THICKNESS / 2, canvasHeight / 2, WALL_THICKNESS, canvasHeight, staticOptions ));
 
-            // --- Corrected Top Funnel Guides ---
-            // Y position for the center of the funnel wall rectangles
-            const funnelWallCenterY = FIRST_PEG_ROW_Y - TOP_FUNNEL_HEIGHT - FUNNEL_WALL_THICKNESS; 
-            // Length of the funnel wall body
-            const funnelWallLength = (TOP_FUNNEL_HEIGHT / Math.sin(TOP_FUNNEL_SLOPE_ANGLE)) * 1.2; // Slightly extend
-
-            // Horizontal distance from the wall's center to its tip along its own axis
+            const funnelWallCenterY = firstPegRowY - topFunnelHeight - FUNNEL_WALL_THICKNESS / 2; 
+            const funnelWallLength = (topFunnelHeight / Math.sin(TOP_FUNNEL_SLOPE_ANGLE)) * 1.2; 
             const funnelWall_X_projection_half = (funnelWallLength / 2) * Math.cos(TOP_FUNNEL_SLOPE_ANGLE);
 
-            // Left Funnel Wall
-            Composite.add(world, Bodies.rectangle(
-                CANVAS_WIDTH / 2 - TOP_FUNNEL_WIDTH_ENTRY / 2 - funnelWall_X_projection_half,
-                funnelWallCenterY,
-                funnelWallLength, FUNNEL_WALL_THICKNESS,
-                { ...staticOptions, angle: TOP_FUNNEL_SLOPE_ANGLE } // Positive angle, slopes \
-            ));
+            Composite.add(world, Bodies.rectangle( canvasWidth / 2 - topFunnelWidthEntry / 2 - funnelWall_X_projection_half, funnelWallCenterY, funnelWallLength, FUNNEL_WALL_THICKNESS, { ...staticOptions, angle: TOP_FUNNEL_SLOPE_ANGLE } ));
+            Composite.add(world, Bodies.rectangle( canvasWidth / 2 + topFunnelWidthEntry / 2 + funnelWall_X_projection_half, funnelWallCenterY, funnelWallLength, FUNNEL_WALL_THICKNESS, { ...staticOptions, angle: -TOP_FUNNEL_SLOPE_ANGLE } ));
 
-            // Right Funnel Wall
-            Composite.add(world, Bodies.rectangle(
-                CANVAS_WIDTH / 2 + TOP_FUNNEL_WIDTH_ENTRY / 2 + funnelWall_X_projection_half,
-                funnelWallCenterY,
-                funnelWallLength, FUNNEL_WALL_THICKNESS,
-                { ...staticOptions, angle: -TOP_FUNNEL_SLOPE_ANGLE } // Negative angle, slopes /
-            ));
-
-
-            const binBottomY = CANVAS_HEIGHT - WALL_THICKNESS - BIN_HEIGHT / 2;
-            const totalContentWidth = CANVAS_WIDTH - 2 * WALL_THICKNESS;
+            const binBottomY = canvasHeight - WALL_THICKNESS - binHeight / 2;
+            const totalContentWidth = canvasWidth - 2 * WALL_THICKNESS;
             const binWidth = (totalContentWidth - (NUM_BINS - 1) * BIN_DIVIDER_THICKNESS) / NUM_BINS;
 
-            for (let i = 0; i < NUM_BINS - 1; i++) {
-                const x = WALL_THICKNESS + (i + 1) * binWidth + i * BIN_DIVIDER_THICKNESS + BIN_DIVIDER_THICKNESS / 2;
-                Composite.add(world, Bodies.rectangle(
-                    x, binBottomY, BIN_DIVIDER_THICKNESS, BIN_HEIGHT, staticOptions ));
+            if (binWidth > BIN_DIVIDER_THICKNESS) { 
+                for (let i = 0; i < NUM_BINS - 1; i++) {
+                    const x = WALL_THICKNESS + (i + 1) * binWidth + i * BIN_DIVIDER_THICKNESS + BIN_DIVIDER_THICKNESS / 2;
+                    Composite.add(world, Bodies.rectangle( x, binBottomY, BIN_DIVIDER_THICKNESS, binHeight, staticOptions ));
+                }
             }
         }
 
@@ -205,46 +248,60 @@
                 render: { fillStyle: COLOR_PEG },
                 circleRadius: PEG_RADIUS
             };
+            
+            const usableWidth = canvasWidth - 2 * WALL_THICKNESS - 2 * PEG_RADIUS; 
+            
+            // --- Updated optimalPegHorizSpacing calculation ---
+            const optimalPegHorizSpacing = Math.max(
+                BALL_RADIUS * PEG_HORIZ_SPACING_FACTOR_BALL, 
+                PEG_RADIUS * 2.1 // Min spacing to prevent pegs visually merging if factor is too low
+            );
 
-            const usableWidth = CANVAS_WIDTH - 2 * WALL_THICKNESS - 2 * PEG_RADIUS;
-            // Define spacing between peg centers. This should be > BALL_RADIUS*2
-            const optimalPegHorizSpacing = Math.max(BALL_RADIUS * 4, PEG_RADIUS * 3);
-
+            if (usableWidth < optimalPegHorizSpacing && NUM_PEG_ROWS > 0) {
+                // If not enough space for even one standard spacing, place a single column of pegs
+                for (let row = 0; row < NUM_PEG_ROWS; row++) {
+                    const y = firstPegRowY + row * pegSpacingY;
+                    if (y < canvasHeight - binHeight - WALL_THICKNESS - PEG_RADIUS && y > firstPegRowY - pegSpacingY/2) { 
+                         Composite.add(world, Bodies.circle(canvasWidth / 2, y, PEG_RADIUS, pegOptions));
+                    }
+                }
+                return;
+            }
 
             for (let row = 0; row < NUM_PEG_ROWS; row++) {
-                const y = FIRST_PEG_ROW_Y + row * PEG_SPACING_Y;
+                const y = firstPegRowY + row * pegSpacingY;
+                if (y > canvasHeight - binHeight - WALL_THICKNESS - PEG_RADIUS || y < firstPegRowY - pegSpacingY / 2) continue; 
                 
                 let numPegsInRow;
-                let rowStartX; // X-coordinate of the center of the first peg in the row
+                let rowStartX; 
 
-                if (row % 2 === 1) { // Even row (0, 2, 4...)
-                    // Calculate max pegs that can fit with this spacing, then center them
+                if (row % 2 === 0) { // Even rows (0, 2, 4...) - typically more pegs or same as staggered
                     numPegsInRow = Math.floor(usableWidth / optimalPegHorizSpacing) + 1;
-                    if (numPegsInRow <=0) numPegsInRow = 1;
-                    const totalWidthOccupiedByPegs = (numPegsInRow - 1) * optimalPegHorizSpacing;
-                    rowStartX = WALL_THICKNESS + PEG_RADIUS + (usableWidth - totalWidthOccupiedByPegs) / 2;
-                } else { // Odd (staggered) row (1, 3, 5...)
-                    // These rows are offset by half a space, so they effectively have less usable width for N pegs
-                    numPegsInRow = Math.floor((usableWidth - optimalPegHorizSpacing) / optimalPegHorizSpacing) + 1;
-                    if (numPegsInRow <=0) numPegsInRow = 1;
-                    const totalWidthOccupiedByPegs = (numPegsInRow - 1) * optimalPegHorizSpacing;
-                    rowStartX = WALL_THICKNESS + PEG_RADIUS + (optimalPegHorizSpacing / 2) + (usableWidth - optimalPegHorizSpacing - totalWidthOccupiedByPegs) / 2;
-                }
-                 if (numPegsInRow < 1) numPegsInRow = 1;
+                    if (numPegsInRow <= 0 && usableWidth > 0) numPegsInRow = 1; else if (numPegsInRow <= 0) continue;
+                    const totalPegsContentWidth = (numPegsInRow - 1) * optimalPegHorizSpacing;
+                    rowStartX = WALL_THICKNESS + PEG_RADIUS + (usableWidth - totalPegsContentWidth) / 2;
+                } else { // Odd rows (1, 3, 5...) - staggered, often one less peg if space is tight
+                    let effectiveUsableWidthForStaggered = usableWidth - optimalPegHorizSpacing; // Account for the half-space offset
+                    if (effectiveUsableWidthForStaggered < 0) effectiveUsableWidthForStaggered = 0;
 
+                    numPegsInRow = Math.floor(effectiveUsableWidthForStaggered / optimalPegHorizSpacing) + 1;
+                    if (numPegsInRow <= 0 && usableWidth > optimalPegHorizSpacing/2) numPegsInRow = 1; else if (numPegsInRow <= 0) continue;
+                    
+                    const totalPegsContentWidth = (numPegsInRow - 1) * optimalPegHorizSpacing;
+                    // Start X for staggered row is offset by half spacing, then centered within remaining space
+                    rowStartX = WALL_THICKNESS + PEG_RADIUS + (optimalPegHorizSpacing / 2) + (effectiveUsableWidthForStaggered - totalPegsContentWidth) / 2;
+                }
 
                 for (let col = 0; col < numPegsInRow; col++) {
                     let x;
-                    if (numPegsInRow === 1) { // Center single peg if it's the only one
-                        x = CANVAS_WIDTH / 2;
+                    if (numPegsInRow === 1) { 
+                        x = canvasWidth / 2;
                     } else {
                         x = rowStartX + col * optimalPegHorizSpacing;
                     }
                     
-                    // Safety check to prevent pegs from being too close to or outside walls
-                    // (though the calculation above should generally prevent this)
-                    if (x < WALL_THICKNESS + PEG_RADIUS * 0.8 || x > CANVAS_WIDTH - WALL_THICKNESS - PEG_RADIUS * 0.8) {
-                        // console.warn(`Peg position issue: R${row},C${col}, X:${x.toFixed(1)}`);
+                    // Safety check, slightly more lenient to allow pegs closer to calculated edge
+                    if (x < WALL_THICKNESS + PEG_RADIUS * 0.5 || x > canvasWidth - WALL_THICKNESS - PEG_RADIUS * 0.5) {
                         continue; 
                     }
                     Composite.add(world, Bodies.circle(x, y, PEG_RADIUS, pegOptions));
@@ -252,16 +309,15 @@
             }
         }
 
-
         function dropBall() {
-            // Drop slightly above the funnel entry
-            const dropX = CANVAS_WIDTH / 2 + (Math.random() - 0.5) * (TOP_FUNNEL_WIDTH_ENTRY * 0.3); 
-            const dropY = FIRST_PEG_ROW_Y - TOP_FUNNEL_HEIGHT - FUNNEL_WALL_THICKNESS - BALL_RADIUS * 3; // Adjusted to be clearly above funnel
+            if (!world) return; // Prevent errors if world not initialized
+            const dropX = canvasWidth / 2 + (Math.random() - 0.5) * (topFunnelWidthEntry * 0.3); 
+            const dropY = firstPegRowY - topFunnelHeight - FUNNEL_WALL_THICKNESS - BALL_RADIUS * 3; 
 
             const ball = Bodies.circle(dropX, dropY, BALL_RADIUS, {
                 restitution: BALL_RESTITUTION,
                 friction: BALL_FRICTION,
-                density: BALL_DENSITY,
+                density: BALL_DENSITY, 
                 render: { fillStyle: COLOR_BALL },
             });
             Composite.add(world, ball);
@@ -286,22 +342,40 @@
             }
         }
 
-        function resetSimulation() {
+        function resetSimulationBoard() { 
+            if (!world) return; // Prevent errors if world not initialized
             stopAutoDrop();
+            const bodiesToRemove = Composite.allBodies(world).filter(body => !body.isStatic);
+            bodiesToRemove.forEach(body => Composite.remove(world, body));
+            
             ballCounter = 0;
             updateBallCountDisplay();
-            Composite.allBodies(world).forEach(body => {
-                if (!body.isStatic) {
-                    Composite.remove(world, body);
-                }
-            });
         }
         
         function updateBallCountDisplay() {
             ballCountDisplay.textContent = `Balls: ${ballCounter}`;
         }
+        
+        function handleWindowResize() {
+            setupSimulation(); 
+        }
 
-        document.addEventListener('DOMContentLoaded', init);
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            setupSimulation(); 
+
+            addBallBtn.onclick = () => dropBall();
+            add10BallsBtn.onclick = () => {
+                for (let i = 0; i < 10; i++) {
+                    setTimeout(() => dropBall(), i * 50); 
+                }
+            };
+            startAutoDropBtn.onclick = startAutoDrop;
+            stopAutoDropBtn.onclick = stopAutoDrop;
+            resetBtn.onclick = resetSimulationBoard;
+
+            window.addEventListener('resize', debounce(handleWindowResize, 250));
+        });
     </script>
 </body>
 </html>
