@@ -84,7 +84,7 @@ async function loadModel() {
 }
 async function getAiMove(currentBoard, player) {
     const legalMoves = getLegalMoves(currentBoard, player);
-    if (legalMoves.length === 0) { return null; }
+    if (legalMoves.length === 0) return null;
     let bestMove = null;
     if (options.aiMode === 'mcts') {
         const mcts = new MCTS(aiModel, 1.0, options.mctsSims);
@@ -169,48 +169,64 @@ function undoMove() {
     gameOver = false;
     gameLoop();
 }
+
+// REFACTORED: The main game loop with robust state handling
 async function gameLoop() {
+    updateDisplay(false); // Update the basic UI (board, scores, status)
+    
     const board = getCurrentBoard();
     let player = getCurrentPlayer();
     
-    const humanMoves = getLegalMoves(board, humanPlayer);
-    const aiMoves = getLegalMoves(board, -humanPlayer);
-    if (humanMoves.length === 0 && aiMoves.length === 0) {
+    if (getLegalMoves(board, player).length === 0 && getLegalMoves(board, -player).length === 0) {
         gameOver = true;
-        updateUI();
+        updateDisplay(false);
         return;
     }
     
     if (getLegalMoves(board, player).length === 0) {
         player = -player;
         playerHistory.push(player);
-        updateUI();
+        updateDisplay(false);
         await new Promise(resolve => setTimeout(resolve, 500));
+        gameLoop();
+        return;
     }
 
-    if (getCurrentPlayer() !== humanPlayer) {
+    if (player !== humanPlayer) {
         aiThinking = true;
-        updateUI();
-        await new Promise(resolve => setTimeout(resolve, 20));
-        const move = await getAiMove(getCurrentBoard(), getCurrentPlayer());
+        updateDisplay(false); // Show "AI is thinking..."
+        await new Promise(resolve => setTimeout(resolve, 20)); // Force repaint
+
+        const move = await getAiMove(board, player);
         aiThinking = false;
         
         if (move) {
-            const newBoard = makeMoveAndGetNewBoard(getCurrentBoard(), move.r, move.c, getCurrentPlayer());
+            const newBoard = makeMoveAndGetNewBoard(board, move.r, move.c, player);
             boardHistory.push(newBoard);
-            playerHistory.push(-getCurrentPlayer());
+            playerHistory.push(-player);
         }
         gameLoop();
     } else {
-        updateUI();
+        // Human's turn. Update UI and now calculate hints.
+        const hints = await getHints();
+        drawBoard(hints); // Redraw board with hints on top
     }
 }
 
-// --- UI & Drawing ---
-async function updateUI() {
+// --- UI & Drawing (REFACTORED) ---
+function updateDisplay(withHints) {
+    if (withHints) {
+        updateDisplayWithHints();
+    } else {
+        drawBoard(null);
+        updateInfoPanel();
+    }
+}
+async function updateDisplayWithHints() {
+    drawBoard(null);
+    updateInfoPanel();
     const hints = await getHints();
     drawBoard(hints);
-    updateInfoPanel();
 }
 function drawBoard(hints) {
     const squareSize = canvas.clientWidth / BOARD_SIZE;
@@ -329,14 +345,12 @@ function createInputPlanes(board, player) {
 // --- Event Listeners ---
 function setupEventListeners() {
     document.getElementById('player-color').addEventListener('change', (e) => { humanPlayer = parseInt(e.target.value); initializeGame(); });
-    document.getElementById('show-legal').addEventListener('change', (e) => { options.showLegalMoves = e.target.value === 'true'; updateUI(); });
+    document.getElementById('show-legal').addEventListener('change', (e) => { options.showLegalMoves = e.target.value === 'true'; gameLoop(); });
     document.getElementById('ai-mode').addEventListener('change', (e) => { options.aiMode = e.target.value; });
     document.getElementById('mcts-sims').addEventListener('change', (e) => { options.mctsSims = parseInt(e.target.value) || 200; });
-    document.getElementById('hint-mode').addEventListener('change', (e) => { options.hintMode = e.target.value; updateUI(); });
+    document.getElementById('hint-mode').addEventListener('change', (e) => { options.hintMode = e.target.value; gameLoop(); });
     restartBtn.addEventListener('click', initializeGame);
     undoBtn.addEventListener('click', undoMove);
-    
-    // CORRECTED: Central input handler for both mouse and touch
     const handleCanvasInput = (event) => {
         event.preventDefault();
         const rect = canvas.getBoundingClientRect();
@@ -353,11 +367,9 @@ function setupEventListeners() {
         const r = Math.floor(y / squareSize);
         handleHumanMove(r, c);
     };
-
     canvas.addEventListener('click', handleCanvasInput);
     canvas.addEventListener('touchstart', handleCanvasInput);
-    
-    window.addEventListener('resize', () => { updateUI(); });
+    window.addEventListener('resize', () => { gameLoop(); });
 }
 
 // --- Start Application ---
