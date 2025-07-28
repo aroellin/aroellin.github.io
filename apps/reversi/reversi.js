@@ -84,9 +84,7 @@ async function loadModel() {
 }
 async function getAiMove(currentBoard, player) {
     const legalMoves = getLegalMoves(currentBoard, player);
-    if (legalMoves.length === 0) {
-        return null;
-    }
+    if (legalMoves.length === 0) { return null; }
     let bestMove = null;
     if (options.aiMode === 'mcts') {
         const mcts = new MCTS(aiModel, 1.0, options.mctsSims);
@@ -101,10 +99,7 @@ async function getAiMove(currentBoard, player) {
         let maxLogit = -Infinity;
         for (const move of legalMoves) {
             const index = move.r * 8 + move.c;
-            if (policyOutput[index] > maxLogit) {
-                maxLogit = policyOutput[index];
-                bestMove = move;
-            }
+            if (policyOutput[index] > maxLogit) { maxLogit = policyOutput[index]; bestMove = move; }
         }
     }
     return bestMove;
@@ -197,7 +192,6 @@ async function gameLoop() {
         aiThinking = true;
         updateUI();
         await new Promise(resolve => setTimeout(resolve, 20));
-
         const move = await getAiMove(getCurrentBoard(), getCurrentPlayer());
         aiThinking = false;
         
@@ -341,15 +335,28 @@ function setupEventListeners() {
     document.getElementById('hint-mode').addEventListener('change', (e) => { options.hintMode = e.target.value; updateUI(); });
     restartBtn.addEventListener('click', initializeGame);
     undoBtn.addEventListener('click', undoMove);
-    canvas.addEventListener('click', (event) => {
+    
+    // CORRECTED: Central input handler for both mouse and touch
+    const handleCanvasInput = (event) => {
+        event.preventDefault();
         const rect = canvas.getBoundingClientRect();
         const squareSize = rect.width / BOARD_SIZE;
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
+        let x, y;
+        if (event.type === 'touchstart') {
+            x = event.touches[0].clientX - rect.left;
+            y = event.touches[0].clientY - rect.top;
+        } else {
+            x = event.clientX - rect.left;
+            y = event.clientY - rect.top;
+        }
         const c = Math.floor(x / squareSize);
         const r = Math.floor(y / squareSize);
         handleHumanMove(r, c);
-    });
+    };
+
+    canvas.addEventListener('click', handleCanvasInput);
+    canvas.addEventListener('touchstart', handleCanvasInput);
+    
     window.addEventListener('resize', () => { updateUI(); });
 }
 

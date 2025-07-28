@@ -5,71 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reversi AI Analysis Tool</title>
     <style>
-        /* Basic styles for the whole page */
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            display: flex;
-            flex-direction: column; /* Stack main items vertically */
-            align-items: center;
-            background-color: #f0f0f0;
-            color: #333;
-            margin: 0;
-            padding: 10px;
-        }
-
-        /* --- NEW: Main container uses Flexbox for layout --- */
-        .container {
-            display: flex;
-            /* Default to stacking for mobile (mobile-first design) */
-            flex-direction: column;
-            align-items: center;
-            gap: 20px;
-            width: 100%;
-        }
-
-        /* --- NEW: The game area itself, which contains the board and info --- */
-        #game-area {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 100%;
-            /* The board will not get larger than 600px */
-            max-width: 600px;
-        }
-
-        /* --- NEW: Making the canvas responsive --- */
-        #board {
-            /* The canvas will fill its container, up to its max-width */
-            width: 100%;
-            /* This makes the height match the width, keeping it square */
-            aspect-ratio: 1 / 1;
-            border: 2px solid black;
-            cursor: pointer;
-        }
-        
-        .info-panel {
-            margin-top: 10px;
-            font-size: 1.1em;
-            text-align: center;
-            width: 100%;
-            height: 50px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #f0f0f0; color: #333; margin: 0; padding: 10px; }
+        .container { display: flex; flex-direction: column; align-items: center; gap: 20px; width: 100%; }
+        #game-area { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 600px; }
+        #board { width: 100%; aspect-ratio: 1 / 1; border: 2px solid black; cursor: pointer; }
+        .info-panel { margin-top: 10px; font-size: 1.1em; text-align: center; width: 100%; height: 50px; display: flex; justify-content: space-between; align-items: center;}
         .scores { font-weight: bold; flex-basis: 33%; text-align: left; }
         #status { flex-basis: 33%; text-align: center; }
-        
-        /* --- NEW: Styling for the controls panel --- */
-        .controls {
-            border: 1px solid #ccc;
-            padding: 15px;
-            background-color: white;
-            border-radius: 8px;
-            width: 90%; /* Take up most of the width on mobile */
-            max-width: 400px;
-            box-sizing: border-box;
-        }
+        .controls { border: 1px solid #ccc; padding: 15px; background-color: white; border-radius: 8px; width: 90%; max-width: 400px; box-sizing: border-box; }
         .controls h2 { margin-top: 0; }
         .control-group { margin-bottom: 15px; }
         .control-group label { display: block; margin-bottom: 5px; font-weight: bold; }
@@ -77,22 +20,9 @@
         button { padding: 10px 15px; font-size: 1em; cursor: pointer; border-radius: 5px; border: 1px solid #ccc; background-color: #e9e9e9;}
         button:hover { background-color: #ddd; }
         .button-group { display: flex; gap: 10px; margin-top: 15px; }
-
-        /* --- NEW: Media Query for Desktops --- */
-        /* If the screen is wider than 1024px, apply these styles */
         @media (min-width: 1024px) {
-            .container {
-                /* Change layout to side-by-side */
-                flex-direction: row;
-                align-items: flex-start; /* Align items to the top */
-                max-width: 1100px;
-            }
-            .controls {
-                /* Give the controls a fixed width on desktop */
-                width: 320px;
-                /* It should grow vertically if needed, but not shrink horizontally */
-                flex-shrink: 0;
-            }
+            .container { flex-direction: row; align-items: flex-start; max-width: 1100px; }
+            .controls { width: 320px; flex-shrink: 0; }
         }
     </style>
 </head>
@@ -100,7 +30,6 @@
     <h1>Reversi AI Analysis Tool</h1>
     <div class="container">
         <div id="game-area">
-            <!-- The HTML width/height attributes set the canvas's internal resolution and aspect ratio -->
             <canvas id="board" width="600" height="600"></canvas>
             <div class="info-panel">
                 <div id="scores" class="scores">Black: 2, White: 2</div>
@@ -110,7 +39,6 @@
         </div>
         <div class="controls">
             <h2>Game Options</h2>
-            <!-- Control groups remain the same -->
             <div class="control-group">
                 <label for="player-color">I want to play as:</label>
                 <select id="player-color"><option value="-1" selected>Black (Starts First)</option><option value="1">White</option></select>
@@ -121,15 +49,25 @@
             </div>
             <div class="control-group">
                 <label for="ai-mode">AI Play Style:</label>
-                <select id="ai-mode"><option value="policy" selected>Simple Policy</option><option value="mcts">MCTS Search</option></select>
+                <select id="ai-mode">
+                    <!-- UPDATED LABEL -->
+                    <option value="policy" selected>Simple Policy Probabilities</option>
+                    <option value="mcts">MCTS Search</option>
+                </select>
             </div>
             <div class="control-group">
                 <label for="mcts-sims">MCTS Simulations (if enabled):</label>
                 <input type="number" id="mcts-sims" value="200" min="10" step="10">
             </div>
-            <div class="control-group">
+             <div class="control-group">
                 <label for="hint-mode">Show Hints Using:</label>
-                <select id="hint-mode"><option value="none" selected>No Hints</option><option value="policy">Policy Probabilities</option><option value="mcts">MCTS Visit Counts</option></select>
+                <select id="hint-mode">
+                    <option value="none" selected>No Hints</option>
+                    <!-- UPDATED LABEL -->
+                    <option value="policy">Simple Policy Probabilities</option>
+                    <!-- UPDATED LABEL -->
+                    <option value="mcts">MCTS Search</option>
+                </select>
             </div>
             <div class="button-group">
                 <button id="restart-btn">New Game</button>
