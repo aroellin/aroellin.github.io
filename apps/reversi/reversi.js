@@ -7,8 +7,6 @@ const restartBtn = document.getElementById('restart-btn');
 const undoBtn = document.getElementById('undo-btn');
 
 const BOARD_SIZE = 8;
-const SQUARE_SIZE = canvas.width / BOARD_SIZE;
-const PIECE_RADIUS = SQUARE_SIZE / 2 - 5;
 const EMPTY = 0;
 
 // --- Game State ---
@@ -86,7 +84,9 @@ async function loadModel() {
 }
 async function getAiMove(currentBoard, player) {
     const legalMoves = getLegalMoves(currentBoard, player);
-    if (legalMoves.length === 0) return null;
+    if (legalMoves.length === 0) {
+        return null;
+    }
     let bestMove = null;
     if (options.aiMode === 'mcts') {
         const mcts = new MCTS(aiModel, 1.0, options.mctsSims);
@@ -101,7 +101,10 @@ async function getAiMove(currentBoard, player) {
         let maxLogit = -Infinity;
         for (const move of legalMoves) {
             const index = move.r * 8 + move.c;
-            if (policyOutput[index] > maxLogit) { maxLogit = policyOutput[index]; bestMove = move; }
+            if (policyOutput[index] > maxLogit) {
+                maxLogit = policyOutput[index];
+                bestMove = move;
+            }
         }
     }
     return bestMove;
@@ -115,7 +118,8 @@ function initializeGame() {
     newBoard[3][4] = -1; newBoard[4][3] = -1;
     boardHistory = [newBoard];
     playerHistory = [-1];
-    gameOver = false; aiThinking = false;
+    gameOver = false;
+    aiThinking = false;
     gameLoop();
 }
 function getCurrentBoard() { return boardHistory[boardHistory.length - 1]; }
@@ -170,69 +174,63 @@ function undoMove() {
     gameOver = false;
     gameLoop();
 }
-// REFACTORED: The main game loop
 async function gameLoop() {
     const board = getCurrentBoard();
     let player = getCurrentPlayer();
     
-    // 1. Check game end condition
-    if (getLegalMoves(board, player).length === 0 && getLegalMoves(board, -player).length === 0) {
+    const humanMoves = getLegalMoves(board, humanPlayer);
+    const aiMoves = getLegalMoves(board, -humanPlayer);
+    if (humanMoves.length === 0 && aiMoves.length === 0) {
         gameOver = true;
-        updateDisplay();
+        updateUI();
         return;
     }
     
-    // 2. Handle passes
     if (getLegalMoves(board, player).length === 0) {
         player = -player;
         playerHistory.push(player);
-        updateDisplay();
+        updateUI();
         await new Promise(resolve => setTimeout(resolve, 500));
-        gameLoop(); // Re-enter the loop for the next player
-        return;
     }
 
-    // 3. Decide next action
-    if (player !== humanPlayer) {
-        // AI's turn
+    if (getCurrentPlayer() !== humanPlayer) {
         aiThinking = true;
-        updateDisplay(); // Show "AI is thinking..."
-        await new Promise(resolve => setTimeout(resolve, 20)); // Force repaint
+        updateUI();
+        await new Promise(resolve => setTimeout(resolve, 20));
 
-        const move = await getAiMove(board, player);
+        const move = await getAiMove(getCurrentBoard(), getCurrentPlayer());
         aiThinking = false;
         
         if (move) {
-            const newBoard = makeMoveAndGetNewBoard(board, move.r, move.c, player);
+            const newBoard = makeMoveAndGetNewBoard(getCurrentBoard(), move.r, move.c, getCurrentPlayer());
             boardHistory.push(newBoard);
-            playerHistory.push(-player);
+            playerHistory.push(-getCurrentPlayer());
         }
-        gameLoop(); // Next turn
+        gameLoop();
     } else {
-        // Human's turn: update UI with hints and wait
-        updateDisplayWithHints();
+        updateUI();
     }
 }
 
-// --- UI & Drawing (REFACTORED) ---
-function updateDisplay() {
-    drawBoard(null); // Draw without hints
+// --- UI & Drawing ---
+async function updateUI() {
+    const hints = await getHints();
+    drawBoard(hints);
     updateInfoPanel();
-}
-async function updateDisplayWithHints() {
-    drawBoard(null); // Draw board first for responsiveness
-    updateInfoPanel();
-    const hints = await getHints(); // Then calculate hints
-    drawBoard(hints); // Redraw with hints
 }
 function drawBoard(hints) {
+    const squareSize = canvas.clientWidth / BOARD_SIZE;
+    const pieceRadius = squareSize / 2 - 5;
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
+    
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = 'green';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     for (let i = 0; i < BOARD_SIZE + 1; i++) {
         ctx.beginPath();
-        ctx.moveTo(i * SQUARE_SIZE, 0); ctx.lineTo(i * SQUARE_SIZE, canvas.height);
-        ctx.moveTo(0, i * SQUARE_SIZE); ctx.lineTo(canvas.width, i * SQUARE_SIZE);
+        ctx.moveTo(i * squareSize, 0); ctx.lineTo(i * squareSize, canvas.height);
+        ctx.moveTo(0, i * squareSize); ctx.lineTo(canvas.width, i * squareSize);
         ctx.strokeStyle = 'black'; ctx.lineWidth = 1; ctx.stroke();
     }
     const board = getCurrentBoard();
@@ -243,10 +241,10 @@ function drawBoard(hints) {
         if (maxHint > 0) {
             for (const [actionStr, value] of Object.entries(hints)) {
                 const move = JSON.parse(actionStr);
-                const radius = PIECE_RADIUS * (value / maxHint);
+                const radius = pieceRadius * (value / maxHint);
                 if (radius > 2) {
                     ctx.beginPath();
-                    ctx.arc(move.c * SQUARE_SIZE + SQUARE_SIZE / 2, move.r * SQUARE_SIZE + SQUARE_SIZE / 2, radius, 0, 2 * Math.PI);
+                    ctx.arc(move.c * squareSize + squareSize / 2, move.r * squareSize + squareSize / 2, radius, 0, 2 * Math.PI);
                     ctx.fillStyle = 'rgba(200, 200, 220, 0.5)';
                     ctx.fill();
                 }
@@ -258,12 +256,12 @@ function drawBoard(hints) {
             const piece = board[r][c];
             if (piece !== EMPTY) {
                 ctx.beginPath();
-                ctx.arc(c * SQUARE_SIZE + SQUARE_SIZE / 2, r * SQUARE_SIZE + SQUARE_SIZE / 2, PIECE_RADIUS, 0, 2 * Math.PI);
+                ctx.arc(c * squareSize + squareSize / 2, r * squareSize + squareSize / 2, pieceRadius, 0, 2 * Math.PI);
                 ctx.fillStyle = piece === 1 ? 'white' : 'black';
                 ctx.fill();
             } else if (legalMoves.some(m => m.r === r && m.c === c)) {
                 ctx.beginPath();
-                ctx.arc(c * SQUARE_SIZE + SQUARE_SIZE / 2, r * SQUARE_SIZE + SQUARE_SIZE / 2, PIECE_RADIUS / 4, 0, 2 * Math.PI);
+                ctx.arc(c * squareSize + squareSize / 2, r * squareSize + squareSize / 2, pieceRadius / 4, 0, 2 * Math.PI);
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
                 ctx.fill();
             }
@@ -345,10 +343,14 @@ function setupEventListeners() {
     undoBtn.addEventListener('click', undoMove);
     canvas.addEventListener('click', (event) => {
         const rect = canvas.getBoundingClientRect();
-        const x = event.clientX - rect.left; const y = event.clientY - rect.top;
-        const c = Math.floor(x / SQUARE_SIZE); const r = Math.floor(y / SQUARE_SIZE);
+        const squareSize = rect.width / BOARD_SIZE;
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        const c = Math.floor(x / squareSize);
+        const r = Math.floor(y / squareSize);
         handleHumanMove(r, c);
     });
+    window.addEventListener('resize', () => { updateUI(); });
 }
 
 // --- Start Application ---
