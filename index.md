@@ -51,7 +51,7 @@ My publications can be found on [Google Scholar](https://scholar.google.com.sg/c
 * [csgc](https://github.com/lishang-stats/csgc): R and Python packages to calculate centred subgraph count statistics; based on the paper
 [“Higher-order fluctuations in dense random graph models”](https://projecteuclid.org/journals/electronic-journal-of-probability/volume-26/issue-none/Higher-order-fluctuations-in-dense-random-graph-models/10.1214/21-EJP708.full)
 * [RSTISim](https://github.com/aroellin/rstisim): R package to simulate STIs on dynamically changing partnership networks.
-* [Reversi AI](https://github.com/aroellin/reversi-ai): Deep Neural Network playing Reversi, training using AlphaZero-style Monte Carlo Tree Search. Play against a trained version [here](https://aroellin.github.io/apps/reversi/).
+* [Reversi AI](https://github.com/aroellin/reversi): Deep Neural Network playing Reversi, trained using AlphaZero-style Monte Carlo Tree Search. Play against a trained version [here](https://aroellin.github.io/apps/reversi/).
 
 
 ## A less serious, but important piece of research nonetheless...
