@@ -71,17 +71,38 @@ class MCTS {
 }
 function softmax(arr) { const maxLogit = Math.max(...arr); const exps = arr.map(x => Math.exp(x - maxLogit)); const sumExps = exps.reduce((a, b) => a + b); return exps.map(e => e / sumExps); }
 
-// --- Core AI Logic ---
+// // --- Core AI Logic ---
+// async function loadModel() {
+//     try {
+//         const session = await ort.InferenceSession.create('./reversi_model.onnx', { executionProviders: ['wasm'] });
+//         aiModel = session;
+//         statusEl.textContent = "AI Model Loaded. Press 'New Game' to start.";
+//     } catch (e) {
+//         statusEl.textContent = `Error loading AI model: ${e.message}. Please check console.`;
+//         console.error(e);
+//     }
+// }
+
+// // Inside reversi.js
+
 async function loadModel() {
     try {
-        const session = await ort.InferenceSession.create('./reversi_model.onnx', { executionProviders: ['wasm'] });
+        // CHANGE: Add a cache-busting parameter to the model URL.
+        // This appends the current timestamp to the filename, forcing the browser
+        // to re-download the model on every page load.
+        const modelUrl = `./reversi_model.onnx?t=${new Date().getTime()}`;
+
+        statusEl.textContent = "Loading AI Model...";
+        const session = await ort.InferenceSession.create(modelUrl, { executionProviders: ['wasm'] });
+        
         aiModel = session;
         statusEl.textContent = "AI Model Loaded. Press 'New Game' to start.";
-    } catch (e) {
+    } catch (e)
         statusEl.textContent = `Error loading AI model: ${e.message}. Please check console.`;
         console.error(e);
     }
 }
+
 async function getAiMove(currentBoard, player) {
     const legalMoves = getLegalMoves(currentBoard, player);
     if (legalMoves.length === 0) return null;
