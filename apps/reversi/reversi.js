@@ -20,7 +20,7 @@ let aiThinking = false;
 // --- Options ---
 let options = {
     showLegalMoves: true,
-    aiMode: 'policy',
+    aiMode: 'mcts',
     mctsSims: 200,
     hintMode: 'none'
 };
