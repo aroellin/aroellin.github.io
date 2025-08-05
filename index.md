@@ -28,7 +28,7 @@ My publications can be found on [Google Scholar](https://scholar.google.com.sg/c
 * [Zhuosong Zhang](https://icm.sustech.edu.cn/people/ZhuosongZHANG?lang=en-us), 2019--2021
 * [Gursharn Kaur](https://sites.google.com/view/gursharn/home), 2018--2021
 * [Arturo Jaramillo](https://www.cimat.mx/~jagil/app/dist/Arturo_Jaramillo_Gil_English.html), jointly with University of Luxembourg, 2019--2020
-* [Xiaochuan Yang](https://scholar.google.com.sg/citations?user=oxnamocAAAAJ), jointly with University of Luxembourg, 2019--2020
+* [Xiaochuan Yang](https://www.linkedin.com/in/xiaochuan-yang-088975188), jointly with University of Luxembourg, 2019--2020
 
 ### PhD students
 
