@@ -34,7 +34,7 @@ My publications can be found on [Google Scholar](https://scholar.google.com.sg/c
 * [Ryo Imai](https://sites.google.com/view/rimaistat), since 2021
 * [Shang Li](https://www.linkedin.com/in/shang-li-statnus/), 2018--2023
 * [Wai Hoh Tang](https://www.linkedin.com/in/wai-hoh-tang), 2016--2020
-* [Daniel Paulin](https://sites.google.com/site/paulindani/), co-supervised with Louis H.\,Y.\ Chen, 2010--2014
+* [Daniel Paulin](https://sites.google.com/site/paulindani/), co-supervised with Louis H.Y. Chen, 2010--2014
 
 ### Visiting Students
 
