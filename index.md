@@ -52,7 +52,7 @@ My publications can be found on [Google Scholar](https://scholar.google.com.sg/c
 
 ## Links to my playground
 
-* [Co-evolution simulation](coevolution/): A HTML5 simulation of a co-evolutionary model.
+* [Co-evolution simulation](apps/coevolution/): A HTML5 simulation of a co-evolutionary model.
 * 
 
 ## A less serious, but important piece of research nonetheless...
