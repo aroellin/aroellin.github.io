@@ -50,6 +50,10 @@ My publications can be found on [Google Scholar](https://scholar.google.com.sg/c
 * [Reversi AI](https://github.com/aroellin/reversi): Deep Neural Network playing Reversi, trained using AlphaZero-style Monte Carlo Tree Search. Play against a trained version [here](https://aroellin.github.io/apps/reversi/). It's a residual convolutional neural network with 1.36 million parameters. I keep training it on my laptop in the background and I will upload new versions regularly. Let me know if you can beat it!
 * [NetCoEvolve](https://github.com/aroellin/netcoevolve): A fast Rust implementation of the stochastic co-evolving network simulation introduced in the article "Co-evolving vertex and edge dynamics in dense graphs" by S. Athreya, F. Hollander, A. Röllin.
 
+## Links to my playground
+
+* [Co-evolution simulation](coevolution/): A HTML5 simulation of a co-evolutionary model.
+* 
 
 ## A less serious, but important piece of research nonetheless...
 

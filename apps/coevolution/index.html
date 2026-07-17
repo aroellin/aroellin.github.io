@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Co-evolving opinion–network dynamics — live simulation</title>
+<style>
+  :root {
+    --c0: #44c774;
+    --c1: #532784;
+    --disc: #df4d70;
+    --ink: #222;
+    --muted: #777;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: var(--ink); background: #fff; display: flex; flex-direction: column;
+  }
+  header {
+    display: flex; align-items: baseline; gap: 18px;
+    padding: 10px 18px 6px 18px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 20px; margin: 0; font-weight: 600; }
+  header .sub { color: var(--muted); font-size: 14px; }
+  #main { flex: 1; display: flex; min-height: 0; }
+  #netwrap { flex: 1; position: relative; min-width: 0; }
+  #net { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #side {
+    width: 340px; padding: 10px 16px; border-left: 1px solid #e5e5e5;
+    display: flex; flex-direction: column; gap: 10px; overflow-y: auto;
+  }
+  .presets { display: flex; gap: 8px; flex-wrap: wrap; }
+  button {
+    font-size: 15px; padding: 8px 12px; border: 1px solid #ccc; border-radius: 7px;
+    background: #f7f7f7; cursor: pointer;
+  }
+  button:hover { background: #ececec; }
+  button.primary { background: #2b6cb0; border-color: #2b6cb0; color: #fff; }
+  button.primary:hover { background: #245a94; }
+  button.active { outline: 3px solid #2b6cb0; }
+  .row { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+  .row label { flex: 0 0 118px; }
+  .row input[type=range] { flex: 1; }
+  .row .val { flex: 0 0 52px; text-align: right; font-variant-numeric: tabular-nums; }
+  .stats { font-size: 15px; line-height: 1.5; font-variant-numeric: tabular-nums; }
+  .stats b { font-weight: 600; }
+  .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+  #trace { width: 100%; height: 130px; border: 1px solid #e5e5e5; border-radius: 6px; }
+  details { font-size: 14px; }
+  details summary { cursor: pointer; color: var(--muted); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; margin-top: 6px; }
+  .grid2 .row label { flex: 0 0 40px; }
+  .hint { font-size: 12.5px; color: var(--muted); }
+  .regime {
+    font-size: 15px; padding: 6px 10px; border-radius: 6px; background: #f2f2f2;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Co-evolving opinions and network</h1>
+  <span class="sub">vertices flip opinions across discordant edges · edges appear between concordant pairs and vanish between discordant pairs</span>
+</header>
+<div id="main">
+  <div id="netwrap"><canvas id="net"></canvas></div>
+  <div id="side">
+    <div class="presets">
+      <button id="p-super">&beta; = 5 &nbsp;(above critical)</button>
+      <button id="p-sub">&beta; = 1.5 &nbsp;(below critical)</button>
+      <button id="p-crit">&beta; = 2 &nbsp;(near critical)</button>
+    </div>
+    <div class="presets">
+      <button id="btn-restart">Restart&ensp;(R)</button>
+      <button id="btn-pause">Pause&ensp;(Space)</button>
+    </div>
+    <div class="regime" id="regime-label"></div>
+    <div class="row"><label>vertices n</label>
+      <input type="range" id="in-n" min="50" max="200" step="10" value="100"><span class="val" id="val-n">100</span></div>
+    <div class="row"><label>&beta; (opinion rate)</label>
+      <input type="range" id="in-beta" min="0.5" max="8" step="0.1" value="5"><span class="val" id="val-beta">5.0</span></div>
+    <div class="row"><label>speed (t / sec)</label>
+      <input type="range" id="in-speed" min="-3" max="-1" step="0.05" value="-2"><span class="val" id="val-speed">0.010</span></div>
+    <div class="stats" id="stats"></div>
+    <canvas id="trace"></canvas>
+    <div class="hint">trace shows the opinion split (green/purple) and the discordant-edge density (red)</div>
+    <details>
+      <summary>full model parameters</summary>
+      <div class="grid2">
+        <div class="row"><label>s<sub>c,0</sub></label><input type="number" id="in-sc0" step="0.1" value="1.0"></div>
+        <div class="row"><label>s<sub>c,1</sub></label><input type="number" id="in-sc1" step="0.1" value="0.0"></div>
+        <div class="row"><label>s<sub>d,0</sub></label><input type="number" id="in-sd0" step="0.1" value="0.0"></div>
+        <div class="row"><label>s<sub>d,1</sub></label><input type="number" id="in-sd1" step="0.1" value="1.0"></div>
+        <div class="row"><label>&eta;</label><input type="number" id="in-eta" step="0.1" value="5.0"></div>
+        <div class="row"><label>&rho;</label><input type="number" id="in-rho" step="1" value="100"></div>
+      </div>
+      <div class="hint" style="margin-top:4px">
+        Concordant pairs gain an edge at rate &rho;&thinsp;s<sub>c,0</sub> and lose it at rate &rho;&thinsp;s<sub>c,1</sub>;
+        discordant pairs gain at &rho;&thinsp;s<sub>d,0</sub> and lose at &rho;&thinsp;s<sub>d,1</sub>.
+        Each discordant edge triggers an opinion flip at rate 2&eta;.
+        The &beta;-presets set &eta; = &beta; and &rho; = n. Edits apply immediately, even to a stopped run; Restart re-initialises the graph.
+      </div>
+      <div class="row" style="margin-top:6px"><label style="flex:0 0 auto">draw edges</label>
+        <input type="checkbox" id="in-edges" checked></div>
+    </details>
+  </div>
+</div>
+<script>
+"use strict";
+// ---------------------------------------------------------------- model
+// Exact dynamics of netcoevolve (Gillespie direct method, four pair buckets).
+const P = { n: 100, eta: 5, rho: 100, sc0: 1, sc1: 0, sd0: 0, sd1: 1, betaMode: true, beta: 5 };
+
+let n, colour, adj, deg;
+let buckets, posIdx, bucketOf;      // pair bookkeeping
+let simT = 0, frozen = false;
+let hist = [];                       // [t, col1, discDensity]
+let paused = false;
+
+function pairIndex(u, v) { if (u > v) { const w = u; u = v; v = w; } return u * n - (u * (u + 1)) / 2 + (v - u - 1); }
+function pairOf(idx) {  // inverse of pairIndex
+  let u = 0, rem = idx;
+  while (rem >= n - 1 - u) { rem -= (n - 1 - u); u++; }
+  return [u, u + 1 + rem];
+}
+const C0 = 0, C1 = 1, D0 = 2, D1 = 3;
+
+function initModel() {
+  n = P.n;
+  colour = new Uint8Array(n);
+  for (let i = 0; i < n; i++) colour[i] = i < n / 2 ? 0 : 1;   // exact 50:50
+  // shuffle colours
+  for (let i = n - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0;
+    const c = colour[i]; colour[i] = colour[j]; colour[j] = c; }
+  adj = new Uint8Array(n * n);
+  deg = new Uint16Array(n);
+  const nPairs = (n * (n - 1)) / 2;
+  buckets = [[], [], [], []];
+  posIdx = new Uint32Array(nPairs);
+  bucketOf = new Uint8Array(nPairs);
+  for (let u = 0; u < n; u++) for (let v = u + 1; v < n; v++) {
+    const present = Math.random() < 0.5;                        // ER(1/2) start
+    if (present) { adj[u * n + v] = adj[v * n + u] = 1; deg[u]++; deg[v]++; }
+    const conc = colour[u] === colour[v];
+    const b = conc ? (present ? C1 : C0) : (present ? D1 : D0);
+    const pi = pairIndex(u, v);
+    bucketOf[pi] = b; posIdx[pi] = buckets[b].length; buckets[b].push(pi);
+  }
+  simT = 0; frozen = false; hist = [[0, colFrac(), buckets[D1].length / nPairs]];
+}
+
+function colFrac() { let s = 0; for (let i = 0; i < n; i++) s += colour[i]; return s / n; }
+
+function moveToBucket(pi, b) {
+  const ob = bucketOf[pi], arr = buckets[ob], k = posIdx[pi], last = arr[arr.length - 1];
+  arr[k] = last; posIdx[last] = k; arr.pop();
+  bucketOf[pi] = b; posIdx[pi] = buckets[b].length; buckets[b].push(pi);
+}
+
+function flipColour(u) {
+  colour[u] ^= 1;
+  for (let v = 0; v < n; v++) {
+    if (v === u) continue;
+    const pi = pairIndex(u, v), present = adj[u * n + v] === 1, conc = colour[u] === colour[v];
+    moveToBucket(pi, conc ? (present ? C1 : C0) : (present ? D1 : D0));
+  }
+}
+
+function setEdge(pi, present) {
+  const [u, v] = pairOf(pi);
+  adj[u * n + v] = adj[v * n + u] = present ? 1 : 0;
+  deg[u] += present ? 1 : -1; deg[v] += present ? 1 : -1;
+  const conc = colour[u] === colour[v];
+  moveToBucket(pi, conc ? (present ? C1 : C0) : (present ? D1 : D0));
+}
+
+function advance(dt) {  // run the Gillespie chain for dt units of simulation time
+  if (frozen) { simT += dt; return; }
+  const tEnd = simT + dt;
+  const rf = 2 * P.eta, rc0 = P.rho * P.sc0, rc1 = P.rho * P.sc1, rd0 = P.rho * P.sd0, rd1 = P.rho * P.sd1;
+  let guard = 4e5;
+  while (simT < tEnd && guard-- > 0) {
+    const r0 = rf * buckets[D1].length, r1 = rc0 * buckets[C0].length, r2 = rc1 * buckets[C1].length,
+          r3 = rd0 * buckets[D0].length, r4 = rd1 * buckets[D1].length;
+    const R = r0 + r1 + r2 + r3 + r4;
+    if (R <= 0) { frozen = true; simT = tEnd; break; }
+    simT += -Math.log(1 - Math.random()) / R;
+    let x = Math.random() * R;
+    if (x < r0) {
+      const arr = buckets[D1], pi = arr[(Math.random() * arr.length) | 0], [u, v] = pairOf(pi);
+      flipColour(Math.random() < 0.5 ? u : v);
+    } else if ((x -= r0) < r1) { const a = buckets[C0]; setEdge(a[(Math.random() * a.length) | 0], true);
+    } else if ((x -= r1) < r2) { const a = buckets[C1]; setEdge(a[(Math.random() * a.length) | 0], false);
+    } else if ((x -= r2) < r3) { const a = buckets[D0]; setEdge(a[(Math.random() * a.length) | 0], true);
+    } else { const a = buckets[D1]; setEdge(a[(Math.random() * a.length) | 0], false); }
+  }
+  const nPairs = (n * (n - 1)) / 2;
+  hist.push([simT, colFrac(), buckets[D1].length / nPairs]);
+  if (hist.length > 4000) hist.splice(0, hist.length - 4000);
+}
+
+// ---------------------------------------------------------------- layout
+// Fruchterman-Reingold displacements (as in networkx.spring_layout) with a hard
+// per-step cap and no momentum, so competing forces on bridge vertices cannot
+// build up oscillations. A smoothed force (EMA) filters the rapid sign flips
+// caused by edges appearing/disappearing, and a weak central pull keeps
+// disconnected communities on screen.
+let px, py, sx, sy;
+function initLayout() {
+  px = new Float64Array(n); py = new Float64Array(n);
+  sx = new Float64Array(n); sy = new Float64Array(n);
+  for (let i = 0; i < n; i++) { const a = 2 * Math.PI * i / n, r = 0.6 + 0.3 * Math.random();
+    px[i] = r * Math.cos(a); py[i] = r * Math.sin(a); }
+  settleLayout();
+}
+let nodeR = 0.03;                      // node radius in layout (world) units
+function frForces(dx, dy) {
+  const k = 3.6 / Math.sqrt(n);        // natural spacing (~0.36 at n = 100)
+  const attr = 1.5;                    // extra weight on edge attraction, so a
+                                       // sparse minority gathers instead of being
+                                       // pinned against the majority's repulsion
+  const grav = 0.12;
+  const RCUT = 1.4;                    // finite repulsion range: far-apart
+                                       // communities stop pushing each other,
+                                       // so they settle at a bounded distance
+  const core = 2 * nodeR * 1.5;        // collision core sets the visual packing
+  dx.fill(0); dy.fill(0);
+  for (let i = 0; i < n; i++) {
+    const rowi = i * n;
+    for (let j = i + 1; j < n; j++) {
+      let ddx = px[i] - px[j], ddy = py[i] - py[j];
+      let d2 = ddx * ddx + ddy * ddy;
+      if (d2 < 1e-6) { ddx = (((i * 2654435761 + j) % 1024) / 1024 - 0.5) * 0.02; ddy = ((i + j) % 2 ? 1 : -1) * 0.01; d2 = ddx * ddx + ddy * ddy; }
+      const d = Math.sqrt(d2);
+      // displacement coefficient (multiplies the difference vector):
+      // repulsion k^2/d^2, attraction d/k along present edges  (classic FR),
+      // plus a soft short-range core that keeps nodes from overlapping
+      let coef = (d < RCUT ? (1 - d / RCUT) * k * k / d2 : 0) - (adj[rowi + j] ? attr * d / k : 0);
+      if (d < core) coef += 5.0 * (core / d - 1);
+      dx[i] += ddx * coef; dy[i] += ddy * coef;
+      dx[j] -= ddx * coef; dy[j] -= ddy * coef;
+    }
+    dx[i] -= grav * px[i]; dy[i] -= grav * py[i];
+  }
+}
+const frTmpX = () => new Float64Array(n), frTmpY = () => new Float64Array(n);
+function settleLayout() {
+  // synchronous annealing burst after (re)start, like the warm-up iterations
+  // used for the pre-rendered figures; runs in a few milliseconds.
+  const dx = frTmpX(), dy = frTmpY();
+  for (let it = 0; it < 80; it++) {
+    const t = 0.1 * (1 - it / 80) + 0.005;
+    frForces(dx, dy);
+    for (let i = 0; i < n; i++) {
+      const len = Math.hypot(dx[i], dy[i]) || 1e-9, step = Math.min(len, t) / len;
+      px[i] += dx[i] * step; py[i] += dy[i] * step;
+    }
+  }
+  sx.fill(0); sy.fill(0);
+}
+let layX = null, layY = null, layoutT = 0.012, layFmax = 0, layFnorm = 0;
+let Dsm = 0, T0 = 0.0025; const T0_FIXED = 0.0025;
+function stepLayout() {
+  if (!layX || layX.length !== n) { layX = new Float64Array(n); layY = new Float64Array(n); }
+  frForces(layX, layY);
+  // Smooth the force field first (EMA) -- this also lets us detect stragglers:
+  // a vertex sitting far from the cluster it is attached to feels a very large
+  // residual attraction, and the layout must not fall asleep before it is home.
+  const alpha = 0.09;   // heavier smoothing of the force field: less wiggle
+  let fmax = 0;
+  for (let i = 0; i < n; i++) {
+    sx[i] += alpha * (layX[i] - sx[i]); sy[i] += alpha * (layY[i] - sy[i]);
+    const f = Math.hypot(sx[i], sy[i]);
+    if (f > fmax) fmax = f;
+  }
+  layFmax = fmax;
+  // Temperature = c * (smoothed discordant-edge density) + a fixed baseline.
+  // While discordance is present the baseline stays fixed; once the discordant
+  // edges have died out for good, the baseline itself decays to zero, giving
+  // the layout a calm relaxation window and then a full stop. A smooth
+  // straggler ramp (force per edge) is kept as a safety net so no vertex can
+  // be left hovering away from its community.
+  let fnorm = 0;
+  for (let i = 0; i < n; i++) {
+    const f = Math.hypot(sx[i], sy[i]) / (deg[i] + 3);
+    if (f > fnorm) fnorm = f;
+  }
+  layFnorm = fnorm;
+  const nPairs = (n * (n - 1)) / 2;
+  const D = buckets[D1].length / nPairs;
+  Dsm += 0.05 * (D - Dsm);
+  if (Dsm > 1e-4) T0 = T0_FIXED;              // discordance alive: keep baseline
+  else T0 *= 0.995;                           // discordance gone: baseline decays
+  const escape = Math.min(0.006, Math.max(0, 0.012 * (fnorm - 0.5)));
+  const target = Math.min(0.0065, 0.03 * Dsm + T0 + escape);
+  layoutT += 0.05 * (target - layoutT);
+  const tCap = layoutT;
+  if (tCap < 2e-5) return;
+  let mx = 0, my = 0;
+  for (let i = 0; i < n; i++) {
+    const len = Math.hypot(sx[i], sy[i]) || 1e-9, step = Math.min(len, tCap) / len;
+    const ddx = sx[i] * step, ddy = sy[i] * step;
+    px[i] += ddx; py[i] += ddy; mx += ddx; my += ddy;
+  }
+  // remove rigid translation so the picture does not wander
+  mx /= n; my /= n;
+  for (let i = 0; i < n; i++) { px[i] -= mx; py[i] -= my; }
+}
+
+window.__pos = () => ({ x: Array.from(px), y: Array.from(py), t: simT });  // debug/testing hook
+window.__fmax = () => layFmax;
+window.__fnorm = () => layFnorm;
+window.__temp = () => layoutT;
+window.__disc = () => buckets[D1].length / ((n * (n - 1)) / 2);
+window.__gaps = () => {   // per-vertex mean distance to graph neighbours, for straggler detection
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    let s = 0, m = 0;
+    for (let j = 0; j < n; j++) if (j !== i && adj[i * n + j]) { s += Math.hypot(px[i]-px[j], py[i]-py[j]); m++; }
+    out.push(m ? s / m : 0);
+  }
+  return out;
+};
+window.__scatter = (k) => {          // testing: strand k vertices of opinion 1 inside the opposite camp
+  let c0x = 0, c0y = 0, m = 0;
+  for (let i = 0; i < n; i++) if (colour[i] === 0) { c0x += px[i]; c0y += py[i]; m++; }
+  c0x /= m; c0y /= m;
+  let done = 0;
+  for (let i = 0; i < n && done < k; i++) if (colour[i] === 1) {
+    px[i] = c0x + (Math.random() - 0.5) * 0.1; py[i] = c0y + (Math.random() - 0.5) * 0.1;
+    done++;
+  }
+};
+
+// ---------------------------------------------------------------- drawing
+const canvas = document.getElementById("net"), ctx = canvas.getContext("2d");
+const traceC = document.getElementById("trace"), tctx = traceC.getContext("2d");
+let viewScale = 1, viewCx = 0, viewCy = 0, viewInit = false;
+
+function draw() {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (canvas.width !== w * devicePixelRatio) { canvas.width = w * devicePixelRatio; canvas.height = h * devicePixelRatio; }
+  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  // auto-fit view (smoothed): fit the bounding box of the configuration
+  let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+  for (let i = 0; i < n; i++) {
+    if (px[i] < minX) minX = px[i]; if (px[i] > maxX) maxX = px[i];
+    if (py[i] < minY) minY = py[i]; if (py[i] > maxY) maxY = py[i];
+  }
+  const ext = Math.max(0.3, (maxX - minX) / 2, (maxY - minY) / 2) + 3 * nodeR;
+  const tScale = 0.46 * Math.min(w, h) / ext;
+  const tCx = (minX + maxX) / 2, tCy = (minY + maxY) / 2;
+  if (!viewInit) { viewScale = tScale; viewCx = tCx; viewCy = tCy; viewInit = true; }
+  viewScale += 0.06 * (tScale - viewScale);
+  viewCx += 0.06 * (tCx - viewCx); viewCy += 0.06 * (tCy - viewCy);
+  const X = i => w / 2 + viewScale * (px[i] - viewCx), Y = i => h / 2 + viewScale * (py[i] - viewCy);
+
+  if (document.getElementById("in-edges").checked) {
+    const nE = buckets[C1].length + buckets[D1].length;
+    const thin = Math.max(1, Math.ceil(nE / 9000));
+    ctx.lineWidth = 0.7;
+    ctx.strokeStyle = "rgba(150,150,150,0.16)";
+    ctx.beginPath();
+    const cArr = buckets[C1];
+    for (let k = 0; k < cArr.length; k += thin) { const [u, v] = pairOf(cArr[k]); ctx.moveTo(X(u), Y(u)); ctx.lineTo(X(v), Y(v)); }
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(223,77,112,0.30)";
+    ctx.beginPath();
+    const dArr = buckets[D1];
+    for (let k = 0; k < dArr.length; k += thin) { const [u, v] = pairOf(dArr[k]); ctx.moveTo(X(u), Y(u)); ctx.lineTo(X(v), Y(v)); }
+    ctx.stroke();
+  }
+  const rad = Math.max(3, Math.min(7, 0.55 * nodeR * viewScale));
+  for (let i = 0; i < n; i++) {
+    ctx.beginPath(); ctx.arc(X(i), Y(i), rad, 0, 2 * Math.PI);
+    ctx.fillStyle = colour[i] ? "#532784" : "#44c774"; ctx.fill();
+    ctx.lineWidth = 1.1; ctx.strokeStyle = "#fff"; ctx.stroke();
+  }
+}
+
+function drawTrace() {
+  const w = traceC.clientWidth, h = traceC.clientHeight;
+  if (traceC.width !== w * devicePixelRatio) { traceC.width = w * devicePixelRatio; traceC.height = h * devicePixelRatio; }
+  tctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  tctx.clearRect(0, 0, w, h);
+  if (hist.length < 2) return;
+  const t0 = hist[0][0], t1 = Math.max(hist[hist.length - 1][0], t0 + 1e-9);
+  const X = t => 4 + (w - 8) * (t - t0) / (t1 - t0), Y = v => h - 4 - (h - 8) * v;
+  tctx.lineWidth = 1.5;
+  const series = [[1, "#44c774", v => 1 - v], [1, "#532784", v => v], [2, "#df4d70", v => v]];
+  for (const [idx, colr, f] of series) {
+    tctx.strokeStyle = colr; tctx.beginPath();
+    for (let k = 0; k < hist.length; k++) {
+      const x = X(hist[k][0]), y = Y(f(hist[k][idx]));
+      k ? tctx.lineTo(x, y) : tctx.moveTo(x, y);
+    }
+    tctx.stroke();
+  }
+}
+
+function updateStats() {
+  const nPairs = (n * (n - 1)) / 2;
+  const c1 = colFrac();
+  const eTot = (buckets[C1].length + buckets[D1].length) / nPairs;
+  const eDisc = buckets[D1].length / nPairs;
+  document.getElementById("stats").innerHTML =
+    `t = <b>${simT.toFixed(3)}</b>${frozen ? " &nbsp;(frozen)" : ""}<br>` +
+    `<span class="swatch" style="background:#44c774"></span>opinion 0: <b>${Math.round((1 - c1) * n)}</b> &emsp;` +
+    `<span class="swatch" style="background:#532784"></span>opinion 1: <b>${Math.round(c1 * n)}</b><br>` +
+    `edge density: <b>${eTot.toFixed(3)}</b> &emsp; discordant: <b style="color:#df4d70">${eDisc.toFixed(3)}</b>`;
+}
+
+// ---------------------------------------------------------------- controls
+const $ = id => document.getElementById(id);
+function speedVal() { return Math.pow(10, parseFloat($("in-speed").value)); }
+function refreshLabels() {
+  $("val-n").textContent = P.n;
+  $("val-beta").textContent = P.beta.toFixed(1);
+  $("val-speed").textContent = speedVal().toFixed(3);
+  const crit = P.beta > 2.2 ? "consensus expected (free diffusion)" : P.beta < 1.9 ? "polarisation expected" : "near the critical point";
+  const presets = { "p-super": 5, "p-sub": 1.5, "p-crit": 2 };
+  for (const id in presets)
+    $(id).classList.toggle("primary", P.betaMode && Math.abs(P.beta - presets[id]) < 1e-9);
+  $("regime-label").innerHTML = P.betaMode
+    ? `&beta;-scaling: &eta; = ${P.beta}, &rho; = n = ${P.n} &nbsp;&mdash;&nbsp; <b>${crit}</b>`
+    : `custom parameters: &eta; = ${P.eta}, &rho; = ${P.rho}`;
+}
+function applyBeta() {
+  P.beta = parseFloat($("in-beta").value);
+  if (P.betaMode) { P.eta = P.beta; P.rho = P.n; $("in-eta").value = P.eta; $("in-rho").value = P.rho; frozen = false; }
+  refreshLabels();
+}
+function restart() {
+  P.n = parseInt($("in-n").value);
+  P.sc0 = readField("in-sc0", P.sc0); P.sc1 = readField("in-sc1", P.sc1);
+  P.sd0 = readField("in-sd0", P.sd0); P.sd1 = readField("in-sd1", P.sd1);
+  if (P.betaMode) { P.eta = P.beta; P.rho = P.n; $("in-eta").value = P.eta; $("in-rho").value = P.rho; }
+  else { P.eta = readField("in-eta", P.eta); P.rho = readField("in-rho", P.rho); }
+  nodeR = 0.30 / Math.sqrt(P.n);
+  initModel(); initLayout(); viewInit = false; refreshLabels();
+  Dsm = buckets[D1].length / ((n * (n - 1)) / 2); T0 = T0_FIXED; layoutT = 0.0065;
+}
+function preset(beta) { P.betaMode = true; $("in-beta").value = beta; applyBeta(); restart(); }
+$("p-super").onclick = () => preset(5);
+$("p-sub").onclick = () => preset(1.5);
+$("p-crit").onclick = () => preset(2);
+$("btn-restart").onclick = restart;
+$("btn-pause").onclick = () => { paused = !paused; $("btn-pause").textContent = paused ? "Resume  (Space)" : "Pause  (Space)"; };
+$("in-beta").oninput = applyBeta;
+$("in-n").oninput = () => { $("val-n").textContent = $("in-n").value; };
+$("in-n").onchange = restart;
+$("in-speed").oninput = refreshLabels;
+// Live parameter edits: apply immediately to the running chain and clear the
+// frozen flag, so e.g. making s_d0 positive revives a stopped polarised state.
+const readField = (id, fallback) => { const v = parseFloat($(id).value); return Number.isFinite(v) && v >= 0 ? v : fallback; };
+[["in-sc0", "sc0"], ["in-sc1", "sc1"], ["in-sd0", "sd0"], ["in-sd1", "sd1"]].forEach(([id, key]) =>
+  $(id).onchange = () => { P[key] = readField(id, P[key]); frozen = false; });
+[["in-eta", "eta"], ["in-rho", "rho"]].forEach(([id, key]) =>
+  $(id).onchange = () => { P.betaMode = false; P[key] = readField(id, P[key]); frozen = false; refreshLabels(); });
+document.addEventListener("keydown", e => {
+  if (e.code === "Space") { e.preventDefault(); $("btn-pause").click(); }
+  if (e.key === "r" || e.key === "R") restart();
+  if (e.key === "1") preset(5);
+  if (e.key === "2") preset(1.5);
+  if (e.key === "3") preset(2);
+});
+
+// ---------------------------------------------------------------- main loop
+let last = performance.now();
+function frame(now) {
+  const dtWall = Math.min(0.1, (now - last) / 1000); last = now;
+  if (!paused) { advance(speedVal() * dtWall); stepLayout(); }
+  draw(); drawTrace(); updateStats();
+  requestAnimationFrame(frame);
+}
+preset(5);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
