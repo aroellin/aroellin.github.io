@@ -81,6 +81,8 @@
       <input type="range" id="in-beta" min="0.5" max="8" step="0.1" value="5"><span class="val" id="val-beta">5.0</span></div>
     <div class="row"><label>speed (t / sec)</label>
       <input type="range" id="in-speed" min="-3" max="-1" step="0.05" value="-2"><span class="val" id="val-speed">0.010</span></div>
+    <div class="row"><label>layout speed</label>
+      <input type="range" id="in-lspeed" min="0.01" max="0.5" step="0.01" value="0.20"><span class="val" id="val-lspeed">0.20</span></div>
     <div class="stats" id="stats"></div>
     <canvas id="trace"></canvas>
     <div class="hint">trace shows the opinion split (green/purple) and the discordant-edge density (red)</div>
@@ -258,8 +260,8 @@ function settleLayout() {
   }
   sx.fill(0); sy.fill(0);
 }
-let layX = null, layY = null, layoutT = 0.012, layFmax = 0, layFnorm = 0;
-let Dsm = 0, T0 = 0.0025; const T0_FIXED = 0.0025;
+let layX = null, layY = null, layoutT = 0.004, layFmax = 0, layFnorm = 0;
+let Dsm = 0, T0 = 0.002;
 function stepLayout() {
   if (!layX || layX.length !== n) { layX = new Float64Array(n); layY = new Float64Array(n); }
   frForces(layX, layY);
@@ -289,10 +291,13 @@ function stepLayout() {
   const nPairs = (n * (n - 1)) / 2;
   const D = buckets[D1].length / nPairs;
   Dsm += 0.05 * (D - Dsm);
-  if (Dsm > 1e-4) T0 = T0_FIXED;              // discordance alive: keep baseline
+  // ONE speed knob: the "layout speed" slider sets the maximum displacement
+  // per frame; the discordance term, baseline and escape all scale with it.
+  const SMAX = 0.0065 * (parseFloat($("in-lspeed").value) || 0.6);
+  if (Dsm > 1e-4) T0 = 0.4 * SMAX;            // discordance alive: keep baseline
   else T0 *= 0.995;                           // discordance gone: baseline decays
-  const escape = Math.min(0.006, Math.max(0, 0.012 * (fnorm - 0.5)));
-  const target = Math.min(0.0065, 0.03 * Dsm + T0 + escape);
+  const escape = Math.min(SMAX, Math.max(0, 2 * SMAX * (fnorm - 0.5)));
+  const target = Math.min(SMAX, 5 * SMAX * Dsm + T0 + escape);
   layoutT += 0.05 * (target - layoutT);
   const tCap = layoutT;
   if (tCap < 2e-5) return;
@@ -439,7 +444,7 @@ function restart() {
   else { P.eta = readField("in-eta", P.eta); P.rho = readField("in-rho", P.rho); }
   nodeR = 0.30 / Math.sqrt(P.n);
   initModel(); initLayout(); viewInit = false; refreshLabels();
-  Dsm = buckets[D1].length / ((n * (n - 1)) / 2); T0 = T0_FIXED; layoutT = 0.0065;
+  Dsm = buckets[D1].length / ((n * (n - 1)) / 2); T0 = 0.002; layoutT = 0.004;
 }
 function preset(beta) { P.betaMode = true; $("in-beta").value = beta; applyBeta(); restart(); }
 $("p-super").onclick = () => preset(5);
@@ -451,6 +456,7 @@ $("in-beta").oninput = applyBeta;
 $("in-n").oninput = () => { $("val-n").textContent = $("in-n").value; };
 $("in-n").onchange = restart;
 $("in-speed").oninput = refreshLabels;
+$("in-lspeed").oninput = () => { $("val-lspeed").textContent = (+$("in-lspeed").value).toFixed(2); };
 // Live parameter edits: apply immediately to the running chain and clear the
 // frozen flag, so e.g. making s_d0 positive revives a stopped polarised state.
 const readField = (id, fallback) => { const v = parseFloat($(id).value); return Number.isFinite(v) && v >= 0 ? v : fallback; };
