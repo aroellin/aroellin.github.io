@@ -52,8 +52,11 @@ My publications can be found on [Google Scholar](https://scholar.google.com.sg/c
 
 ## Links to my playground
 
-* [Co-evolution simulation](apps/coevolution/): A HTML5 simulation of a co-evolutionary model.
-* 
+* [Co-evolution simulation](apps/coevolution/): An HTML5 simulation of a co-evolutionary model.
+* [Galton board simulation](apps/galton/): An interactive physics simulation illustrating the emergence of the normal distribution.
+* [Guess the Rule](apps/guess-the-rule/): Test number sequences and try to uncover the hidden rule.
+* [Interactive regression game](apps/regression/): Fit a line to training data and see how well it predicts new observations.
+* [Reversi AI](apps/reversi/): Play Reversi against a neural-network-powered AI.
 
 ## A less serious, but important piece of research nonetheless...
 
