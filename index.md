@@ -38,7 +38,7 @@ My publications can be found on [Google Scholar](https://scholar.google.com.sg/c
 ### Visiting Students
 
 * Marzio Formica, EPFL, 2026–2027
-* Yuewen Hou, Fujian Normal University, since 2025
+* Yuewen Hou, Fujian Normal University, 2025–2026
 * Côme Le Réveillé, École Normale Supérieure, 2025
 
 
