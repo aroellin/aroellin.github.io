@@ -6,9 +6,8 @@ I'm currently Professor at the [Department of Statistics and Data Science](https
 
 ## News
 
-* Do check out our [MSc in Data Science for Sustainability](https://www.stat.nus.edu.sg/prospective-students/graduate-programme/msc-in-data-science-for-sustainability/)!
-* We have tenure-track positions in statistics, data science and related areas; do not hesitate to contact the department or apply through [mathjobs.org](https://www.mathjobs.org/jobs/list/26787).
-* Our department is offering departmental postdoc positions! Do not hesitate to contact the department or apply through [mathjobs.org](https://www.mathjobs.org/jobs/list/27642).
+* We have tenured and tenure-track positions in statistics, data science and related areas; do not hesitate to contact the department or apply through [mathjobs.org](https://www.mathjobs.org/jobs/list/28701).
+* Our department is offering Visiting Fellow (postdoctoral) positions! Do not hesitate to contact the department or apply through [mathjobs.org](https://www.mathjobs.org/jobs/list/28755).
 
 
 ## Research Interests
