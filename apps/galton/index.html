@@ -1,381 +1,1574 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Galton Board Simulation</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
-    <style>
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh; /* Ensure body takes full height */
-            margin: 0;
-            background-color: #222;
-            font-family: sans-serif;
-            flex-direction: column;
-            overflow: hidden; /* Prevent scrollbars if canvas is slightly too big during resize flicker */
-        }
-        #controls {
-            margin-bottom: 10px;
-            color: #fff;
-            text-align: center; /* Center buttons */
-            flex-shrink: 0; /* Prevent controls from shrinking */
-            padding: 5px;
-        }
-        #controls button {
-            padding: 8px 12px; /* Slightly smaller padding for mobile */
-            margin: 2px 3px;   /* Smaller margins */
-            cursor: pointer;
-            font-size: 0.9em; /* Slightly smaller font */
-        }
-        #ballCount {
-            display: inline-block;
-            margin-left: 10px;
-            font-size: 0.9em;
-        }
-        canvas {
-            border: 1px solid #555;
-            display: block; /* Remove extra space below canvas */
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Galton Board</title>
+<meta name="description" content="An interactive Galton board with a purpose-built rigid-body solver, an adjustable board tilt that biases the deflection probability, and a live binomial goodness-of-fit readout.">
+<style>
+  :root{
+    --paper:#FBF9F4;
+    --paper-2:#F4F1E9;
+    --ink:#1B1F23;
+    --ink-2:#4C535A;
+    --ink-3:#8B9096;
+    --rule:#DCD5C6;
+    --rule-2:#EAE4D7;
+    --accent:#B0472F;
+    --accent-soft:rgba(176,71,47,.14);
+    --blue:#2F5D7C;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+    --sans:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  }
+
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:14px;
+    line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+    -webkit-text-size-adjust:100%;
+  }
+
+  /* ---------------- header ---------------- */
+  header#top{
+    display:flex; align-items:baseline; gap:18px; flex-wrap:wrap;
+    padding:14px 20px 12px;
+    border-bottom:1px solid var(--rule);
+    background:var(--paper);
+  }
+  header#top h1{
+    font-family:var(--serif);
+    font-size:22px; font-weight:600; letter-spacing:.01em;
+    margin:0;
+  }
+  header#top .sub{
+    color:var(--ink-3); font-size:12.5px; max-width:46ch;
+  }
+  .actions{margin-left:auto; display:flex; gap:6px; flex-wrap:wrap}
+
+  button{
+    font:inherit; font-size:12.5px;
+    color:var(--ink); background:var(--paper-2);
+    border:1px solid var(--rule);
+    border-radius:5px;
+    padding:6px 11px;
+    cursor:pointer;
+    transition:background .12s, border-color .12s, color .12s;
+    white-space:nowrap;
+  }
+  button:hover{background:#EDE8DC; border-color:#CBC3B1}
+  button:active{background:#E5DFD0}
+  button.primary{background:var(--ink); color:var(--paper); border-color:var(--ink)}
+  button.primary:hover{background:#33393F; border-color:#33393F}
+  button.on{background:var(--accent); border-color:var(--accent); color:#fff}
+  button.on:hover{background:#9C3E29; border-color:#9C3E29}
+  button:disabled{opacity:.4; cursor:default}
+  button:focus-visible, input:focus-visible, summary:focus-visible{outline:2px solid var(--blue); outline-offset:2px}
+
+  /* ---------------- layout ---------------- */
+  main{
+    display:grid;
+    grid-template-columns:296px minmax(0,1.02fr) minmax(0,1fr);
+    gap:16px;
+    padding:16px 20px 20px;
+    height:calc(100dvh - 60px);
+  }
+  .panel{
+    border:1px solid var(--rule);
+    border-radius:7px;
+    background:#fff;
+    display:flex; flex-direction:column;
+    min-height:0; min-width:0;
+    overflow:hidden;
+  }
+  .panel > .head{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    padding:9px 13px;
+    border-bottom:1px solid var(--rule-2);
+    background:var(--paper);
+  }
+  .panel > .head h2{
+    font-family:var(--serif); font-size:14.5px; font-weight:600;
+    margin:0; letter-spacing:.02em;
+  }
+  .panel > .head .note{font-size:11.5px; color:var(--ink-3); font-variant-numeric:tabular-nums}
+  .stretch{margin-left:auto}
+
+  .canvasWrap{position:relative; flex:1 1 auto; min-height:0}
+  canvas{display:block; width:100%; height:100%; touch-action:manipulation}
+  /* the apparatus is painted on a cached layer; only the balls still in play
+     are repainted each frame */
+  #boardBg,#board{position:absolute; inset:0}
+
+  /* ---------------- sidebar ---------------- */
+  aside.panel{overflow-y:auto; overscroll-behavior:contain}
+  aside .body{padding:4px 13px 16px}
+  .group{padding:12px 0 4px; border-top:1px solid var(--rule-2)}
+  .group:first-child{border-top:none}
+  .group > h3{
+    font-family:var(--sans);
+    font-size:10.5px; font-weight:600; letter-spacing:.13em; text-transform:uppercase;
+    color:var(--ink-3); margin:0 0 9px;
+  }
+
+  .field{margin-bottom:11px}
+  .field .lab{
+    display:flex; justify-content:space-between; align-items:baseline;
+    gap:8px; margin-bottom:3px;
+  }
+  .field .lab span:first-child{font-size:12.5px; color:var(--ink-2)}
+  .field .val{font-family:var(--mono); font-size:11.5px; color:var(--ink); font-variant-numeric:tabular-nums}
+  .field .hint{font-size:11px; color:var(--ink-3); margin-top:2px}
+
+  input[type=range]{
+    -webkit-appearance:none; appearance:none;
+    width:100%; height:18px; background:transparent; margin:0; cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-runnable-track{height:2px; background:var(--rule); border-radius:2px}
+  input[type=range]::-moz-range-track{height:2px; background:var(--rule); border-radius:2px}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:13px; height:13px; margin-top:-5.5px;
+    border-radius:50%; background:var(--paper); border:1.5px solid var(--ink); box-shadow:none;
+  }
+  input[type=range]::-moz-range-thumb{
+    width:13px; height:13px; border-radius:50%; background:var(--paper); border:1.5px solid var(--ink);
+  }
+  input[type=range]:hover::-webkit-slider-thumb{background:#fff; border-color:var(--accent)}
+  input[type=range]:hover::-moz-range-thumb{background:#fff; border-color:var(--accent)}
+
+  label.check{
+    display:flex; align-items:center; gap:8px;
+    font-size:12.5px; color:var(--ink-2);
+    padding:3px 0; cursor:pointer;
+  }
+  input[type=checkbox]{
+    appearance:none; -webkit-appearance:none;
+    width:14px; height:14px; border:1px solid var(--rule); border-radius:3px;
+    background:var(--paper); cursor:pointer; position:relative; flex:none;
+  }
+  input[type=checkbox]:checked{background:var(--ink); border-color:var(--ink)}
+  input[type=checkbox]:checked::after{
+    content:""; position:absolute; left:4px; top:1px;
+    width:4px; height:8px; border:solid var(--paper);
+    border-width:0 1.7px 1.7px 0; transform:rotate(43deg);
+  }
+
+  .seg{display:inline-flex; border:1px solid var(--rule); border-radius:5px; overflow:hidden}
+  .seg button{border:none; border-radius:0; background:var(--paper); padding:4px 10px; font-size:11.5px}
+  .seg button + button{border-left:1px solid var(--rule)}
+  .seg button.on{background:var(--ink); color:var(--paper)}
+  .seg button.on:hover{background:#33393F}
+
+  /* ---------------- stats ---------------- */
+  .legend{display:flex; gap:13px; flex-wrap:wrap; font-size:11.5px; color:var(--ink-2)}
+  .legend .ln{display:inline-block; width:15px; height:0; vertical-align:middle; margin-right:5px; border-top-width:2px; border-top-style:solid}
+  .legend .sw{display:inline-block; width:11px; height:11px; vertical-align:-1px; margin-right:5px; border:1px solid var(--accent); background:var(--accent-soft)}
+  .legend em{font-style:italic}
+
+  .stats{
+    border-top:1px solid var(--rule-2);
+    padding:10px 13px 12px;
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(96px,1fr));
+    gap:9px 16px;
+    background:var(--paper);
+  }
+  .stat dt{
+    font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--ink-3); margin:0 0 1px;
+  }
+  .stat dd{
+    margin:0; font-family:var(--mono); font-size:13px;
+    font-variant-numeric:tabular-nums; color:var(--ink);
+  }
+  .stat dd small{display:block; font-size:10.5px; line-height:1.3; color:var(--ink-3); font-family:var(--sans)}
+
+  /* ---------------- notes ---------------- */
+  details.notes{margin-top:14px; border-top:1px solid var(--rule-2); padding-top:10px}
+  details.notes summary{
+    cursor:pointer; font-size:11px; letter-spacing:.13em; text-transform:uppercase;
+    color:var(--ink-3); font-weight:600; list-style:none;
+  }
+  details.notes summary::-webkit-details-marker{display:none}
+  details.notes summary::before{content:"▸ "; display:inline-block; transition:transform .15s}
+  details.notes[open] summary::before{content:"▾ "}
+  details.notes .txt{
+    font-family:var(--serif); font-size:13px; line-height:1.55; color:var(--ink-2);
+    margin-top:9px;
+  }
+  details.notes .txt p{margin:0 0 9px}
+  details.notes .txt em{color:var(--ink)}
+  .kbd{
+    font-family:var(--mono); font-size:10.5px;
+    border:1px solid var(--rule); border-bottom-width:2px; border-radius:3px;
+    padding:0 4px; background:var(--paper); color:var(--ink-2);
+  }
+
+  .flash{
+    position:absolute; left:50%; bottom:12px; transform:translateX(-50%);
+    background:rgba(27,31,35,.88); color:var(--paper);
+    font-size:11.5px; padding:5px 11px; border-radius:20px;
+    pointer-events:none; opacity:0; transition:opacity .25s;
+    white-space:nowrap;
+  }
+  .flash.show{opacity:1}
+
+  /* ---------------- responsive ---------------- */
+  @media (max-width:1180px){
+    main{
+      grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+      grid-template-areas:"board plot" "side side";
+      height:auto;
+    }
+    #boardPanel{grid-area:board; height:clamp(420px,64vh,760px)}
+    #plotPanel{grid-area:plot; height:clamp(420px,64vh,760px)}
+    aside.panel{grid-area:side; overflow:visible}
+    aside .body{
+      display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:0 26px;
+      align-items:start;
+    }
+    .group{border-top:none; padding-top:14px}
+    details.notes{grid-column:1/-1}
+  }
+  @media (max-width:720px){
+    main{grid-template-columns:1fr; grid-template-areas:"board" "plot" "side"; padding:12px}
+    header#top{padding:12px 14px 10px}
+    header#top .sub{display:none}
+    #boardPanel{height:clamp(380px,62vh,640px)}
+    #plotPanel{height:auto}
+    #plotPanel .canvasWrap{height:270px; flex:none}
+  }
+</style>
 </head>
 <body>
-    <div id="controls">
-        <button id="addBallBtn">Add Ball</button>
-        <button id="add10BallsBtn">Add 10</button>
-        <button id="startAutoDropBtn">Auto</button>
-        <button id="stopAutoDropBtn">Stop</button>
-        <button id="resetBtn">Reset</button>
-        <span id="ballCount">Balls: 0</span>
+
+<header id="top">
+  <h1>Galton Board</h1>
+  <div class="sub">Rigid-body simulation of a quincunx. Tilting the board slants every peg row against gravity and biases each deflection.</div>
+  <div class="actions">
+    <button id="btnDrop">Drop</button>
+    <button id="btnDrop100">Drop&nbsp;100</button>
+    <button id="btnAuto" class="primary">Auto</button>
+    <button id="btnPause">Pause</button>
+    <button id="btnClear">Clear balls</button>
+    <button id="btnReset">Reset</button>
+  </div>
+</header>
+
+<main>
+  <aside class="panel">
+    <div class="head"><h2>Parameters</h2><span class="note stretch" id="fps">–</span></div>
+    <div class="body">
+
+      <div class="group">
+        <h3>Board</h3>
+        <div class="field">
+          <div class="lab"><span>Peg rows <i>n</i></span><span class="val" id="vRows">12</span></div>
+          <input type="range" id="sRows" min="4" max="20" step="1" value="12">
+          <div class="hint">Gives <span id="vBins">13</span> bins, one per lattice column.</div>
+        </div>
+        <div class="field">
+          <div class="lab"><span>Tilt <i>α</i></span><span class="val" id="vTilt">0.0°</span></div>
+          <input type="range" id="sTilt" min="-16" max="16" step="0.5" value="0">
+          <div class="hint">Slants the peg rows against gravity. Little happens below about 5°, where the noise at each peg still dominates.</div>
+        </div>
+        <div class="field">
+          <div class="lab"><span>Row spacing</span><span class="val" id="vDy">0.80</span></div>
+          <input type="range" id="sDy" min="0.65" max="1.15" step="0.01" value="0.80">
+          <div class="hint">In units of the horizontal peg spacing.</div>
+        </div>
+        <div class="field">
+          <div class="lab"><span>Ball radius</span><span class="val" id="vBallF">0.22</span></div>
+          <input type="range" id="sBallF" min="0.14" max="0.28" step="0.005" value="0.22">
+          <div class="hint">A ball much smaller than the gap threads the array diagonally instead of stepping along it.</div>
+        </div>
+        <div class="field">
+          <div class="lab"><span>Peg radius</span><span class="val" id="vPegF">0.16</span></div>
+          <input type="range" id="sPegF" min="0.08" max="0.22" step="0.005" value="0.16">
+        </div>
+      </div>
+
+      <div class="group">
+        <h3>Physics</h3>
+        <div class="field">
+          <div class="lab"><span>Restitution <i>e</i></span><span class="val" id="vRest">0.35</span></div>
+          <input type="range" id="sRest" min="0" max="0.7" step="0.01" value="0.35">
+          <div class="hint">Bouncy pegs throw the ball past the next column, which inflates the variance.</div>
+        </div>
+        <div class="field">
+          <div class="lab"><span>Friction <i>μ</i></span><span class="val" id="vFric">0.45</span></div>
+          <input type="range" id="sFric" min="0" max="0.8" step="0.01" value="0.45">
+        </div>
+        <div class="field">
+          <div class="lab"><span>Peg roughness</span><span class="val" id="vRough">6.0°</span></div>
+          <input type="range" id="sRough" min="0" max="14" step="0.1" value="6">
+          <div class="hint">Random tilt of the contact normal, standing in for surface irregularity.</div>
+        </div>
+        <div class="field">
+          <div class="lab"><span>Gravity <i>g</i></span><span class="val" id="vGrav">1.00</span></div>
+          <input type="range" id="sGrav" min="0.3" max="2.5" step="0.05" value="1">
+        </div>
+        <label class="check"><input type="checkbox" id="cBallBall" checked> Ball–ball collisions</label>
+      </div>
+
+      <div class="group">
+        <h3>Release</h3>
+        <div class="field">
+          <div class="lab"><span>Rate</span><span class="val" id="vRate">5 /s</span></div>
+          <input type="range" id="sRate" min="1" max="40" step="1" value="5">
+          <div class="hint">A crowded board is not a Bernoulli scheme; balls jostling in the array widen the histogram.</div>
+        </div>
+        <div class="field">
+          <div class="lab"><span>Release jitter</span><span class="val" id="vJit">0.15</span></div>
+          <input type="range" id="sJit" min="0" max="1" step="0.01" value="0.15">
+          <div class="hint">Horizontal spread at the hopper, in peg spacings.</div>
+        </div>
+        <div class="field">
+          <div class="lab"><span>Balls kept on board</span><span class="val" id="vMax">600</span></div>
+          <input type="range" id="sMax" min="150" max="1600" step="50" value="600">
+          <div class="hint">Counts are recorded on entry to a bin and never discarded.</div>
+        </div>
+      </div>
+
+      <div class="group">
+        <h3>Simulation</h3>
+        <div class="field">
+          <div class="lab"><span>Speed</span><span class="val" id="vSpeed">1.00×</span></div>
+          <input type="range" id="sSpeed" min="0.15" max="3" step="0.05" value="1">
+        </div>
+      </div>
+
+      <div class="group">
+        <h3>Display</h3>
+        <label class="check"><input type="checkbox" id="cNormal" checked> Normal approximation</label>
+        <label class="check"><input type="checkbox" id="cRef"> Reference Bin(n, ½)</label>
+        <label class="check"><input type="checkbox" id="cSpin" checked> Spin marks on balls</label>
+        <label class="check"><input type="checkbox" id="cLabels" checked> Bin numbers</label>
+        <div class="field" style="margin-top:9px">
+          <button id="btnCopy" style="width:100%">Copy bin counts</button>
+        </div>
+      </div>
+
+      <details class="notes">
+        <summary>Notes</summary>
+        <div class="txt">
+          <p>The pegs sit on a staggered lattice of <em>n</em> rows whose columns line up exactly with the <em>n</em>+1 bins, so a ball deflected right <em>j</em> times lands in bin <em>j</em> and the idealised board realises Bin(<em>n</em>,&nbsp;<em>p</em>). The array spans the full width rather than forming a triangle: the outer edge of a triangle has no peg on its far side, and a ball that once starts drifting outwards rides that edge all the way down instead of being turned back.</p>
+          <p>Tilting the board by <em>α</em> leaves gravity vertical but slants every peg row, so the ball rolls off each peg downhill more often than uphill. Nothing much happens below about 5°: the direction a ball leaves a peg is decided by its incoming velocity and by the roughness, and the tilt has to compete with both. From there the bias climbs quickly. It is a consequence of the mechanics rather than an imposed parameter, so <em>p</em> is estimated from the data as the sample mean divided by <em>n</em>.</p>
+          <p>Randomness enters through three channels only: the release jitter at the hopper, the roughness of the pegs, and collisions between balls. Set all three to zero and the board becomes deterministic — every ball traces the same path.</p>
+          <p>Ball radius matters more than one would guess. A ball much smaller than the gap between pegs threads the array diagonally, keeps its horizontal momentum from row to row and drifts steadily to one side; the walk becomes strongly persistent and the variance several times the binomial one. A ball that nearly fills the gap is stopped at every row, and the deflections come much closer to independent tosses.</p>
+          <p>The physical board is not exactly a Bernoulli scheme. Successive deflections stay mildly correlated through the carried velocity and spin, a crowded board couples the paths, and the side walls truncate the tails. The excess variance is roughly a fixed amount rather than a fixed proportion, so it shows up most clearly with few rows: at the default settings the standard deviation runs some 5% above the binomial one at <em>n</em>&nbsp;=&nbsp;12 and nearer 20% at <em>n</em>&nbsp;=&nbsp;5. For large samples the chi-square statistic duly rejects the fit even though the histogram looks right.</p>
+          <p><span class="kbd">space</span> auto &nbsp; <span class="kbd">d</span> drop &nbsp; <span class="kbd">p</span> pause &nbsp; <span class="kbd">r</span> reset. Clicking the board releases a ball. From the console, <span class="kbd">galton.batch(2000)</span> runs that many balls one at a time, without rendering and without crowding, and returns the bin counts.</p>
+        </div>
+      </details>
+
     </div>
-    <canvas id="galtonCanvas"></canvas>
+  </aside>
 
-    <script>
-        // --- Matter.js Aliases ---
-        const Engine = Matter.Engine;
-        const Render = Matter.Render;
-        const Runner = Matter.Runner;
-        const Bodies = Matter.Bodies;
-        const Composite = Matter.Composite;
+  <section class="panel" id="boardPanel">
+    <div class="head">
+      <h2>Apparatus</h2>
+      <span class="note" id="boardNote">–</span>
+    </div>
+    <div class="canvasWrap">
+      <canvas id="boardBg"></canvas>
+      <canvas id="board"></canvas>
+      <div class="flash" id="flash"></div>
+    </div>
+  </section>
 
-        // --- Static Configuration Constants ---
-        const COLOR_STRUCT_ORIGINAL = '#FFFF00'; 
-        const COLOR_STRUCT = '#555555'; 
-        const COLOR_PEG = '#FF0000';    
-        const COLOR_BALL = '#333333';   
-        const COLOR_BACKGROUND = '#FFFFFF'; 
+  <section class="panel" id="plotPanel">
+    <div class="head">
+      <h2>Distribution</h2>
+      <div class="seg stretch">
+        <button id="btnCount" class="on">count</button>
+        <button id="btnFreq">frequency</button>
+      </div>
+    </div>
+    <div class="head" style="border-bottom:1px solid var(--rule-2); padding-top:7px; padding-bottom:7px">
+      <div class="legend">
+        <span><span class="sw"></span>observed</span>
+        <span><span class="ln" style="border-color:#1B1F23"></span>Bin(<em>n</em>,&nbsp;<em>p̂</em>)</span>
+        <span id="lgNormal"><span class="ln" style="border-color:#2F5D7C; border-top-style:dashed"></span>normal</span>
+        <span id="lgRef" hidden><span class="ln" style="border-color:#9A9489; border-top-style:dashed"></span>Bin(<em>n</em>,&nbsp;½)</span>
+      </div>
+    </div>
+    <div class="canvasWrap"><canvas id="plot"></canvas></div>
+    <dl class="stats" id="statsBox"></dl>
+  </section>
+</main>
 
-        const WALL_THICKNESS = 15; 
-        const PEG_RADIUS = 5;
-        const BALL_RADIUS = 6; 
-        const BIN_DIVIDER_THICKNESS = 3;
-        const FUNNEL_WALL_THICKNESS = 10;
+<script>
+"use strict";
+(function(){
 
-        const NUM_PEG_ROWS = 17;
-        const NUM_BINS = 11; 
-        
-        const TOP_FUNNEL_SLOPE_ANGLE = Math.PI / 5; 
+/* ==========================================================================
+   1.  Numerical helpers
+   ========================================================================== */
 
-        // Physics Properties
-        const BALL_RESTITUTION = 0.5;
-        const BALL_FRICTION = 0.01; 
-        const BALL_DENSITY = 3; 
-        const PEG_RESTITUTION = 0.5;
-        const PEG_FRICTION = 0.05;
+const LOGF = (function(){ const a=[0]; for(let i=1;i<=512;i++) a[i]=a[i-1]+Math.log(i); return a; })();
 
-        // --- Proportional Scaling Factors & Peg Spacing ---
-        const FIRST_PEG_ROW_Y_FACTOR = 0.20;    // Relative to canvasHeight
-        const PEG_SPACING_Y_FACTOR = 0.033;     // Relative to canvasHeight
-        const PEG_HORIZ_SPACING_FACTOR_BALL = 4.0; // Multiplier for BALL_RADIUS to set horizontal distance between peg centers.
-                                                // Smaller (e.g. 2.5) = denser pegs, larger (e.g. 5.0) = sparser.
-        const BIN_HEIGHT_FACTOR = 0.21;         // Relative to canvasHeight
-        const TOP_FUNNEL_HEIGHT_FACTOR = 0.07;  // Relative to canvasHeight
+function logChoose(n,k){ return LOGF[n]-LOGF[k]-LOGF[n-k]; }
 
-        // --- Dynamic Variables (calculated based on screen size) ---
-        let canvasWidth;
-        let canvasHeight;
-        let firstPegRowY, pegSpacingY, binHeight, topFunnelHeight;
-        let topFunnelWidthEntry; 
+function binomPMF(n,k,p){
+  if(k<0||k>n) return 0;
+  if(p<=0) return k===0?1:0;
+  if(p>=1) return k===n?1:0;
+  return Math.exp(logChoose(n,k)+k*Math.log(p)+(n-k)*Math.log(1-p));
+}
 
+function gammln(x){
+  const cof=[76.18009172947146,-86.50532032941677,24.01409824083091,
+             -1.231739572450155,0.1208650973866179e-2,-0.5395239384953e-5];
+  let y=x, tmp=x+5.5;
+  tmp-=(x+0.5)*Math.log(tmp);
+  let ser=1.000000000190015;
+  for(let j=0;j<6;j++) ser+=cof[j]/++y;
+  return -tmp+Math.log(2.5066282746310005*ser/x);
+}
+function gser(a,x){
+  const gln=gammln(a);
+  if(x<=0) return 0;
+  let ap=a, sum=1/a, del=sum;
+  for(let i=0;i<500;i++){
+    ap++; del*=x/ap; sum+=del;
+    if(Math.abs(del)<Math.abs(sum)*1e-12) break;
+  }
+  return sum*Math.exp(-x+a*Math.log(x)-gln);
+}
+function gcf(a,x){
+  const gln=gammln(a), FPMIN=1e-300, EPS=1e-12;
+  let b=x+1-a, c=1/FPMIN, d=1/b, h=d;
+  for(let i=1;i<=500;i++){
+    const an=-i*(i-a);
+    b+=2; d=an*d+b; if(Math.abs(d)<FPMIN) d=FPMIN;
+    c=b+an/c;       if(Math.abs(c)<FPMIN) c=FPMIN;
+    d=1/d; const del=d*c; h*=del;
+    if(Math.abs(del-1)<EPS) break;
+  }
+  return Math.exp(-x+a*Math.log(x)-gln)*h;
+}
+/* upper tail  Q(a,x) = Γ(a,x)/Γ(a) */
+function gammq(a,x){
+  if(x<0||a<=0) return NaN;
+  if(x===0) return 1;
+  return x < a+1 ? 1-gser(a,x) : gcf(a,x);
+}
+function chiSqUpper(chi2,df){
+  if(!(df>0)||!isFinite(chi2)) return NaN;
+  return gammq(df/2, chi2/2);
+}
 
-        // --- Global Matter.js Instances ---
-        let engine;
-        let render;
-        let runner;
-        let world;
-        
-        let ballDropIntervalId = null;
-        let ballCounter = 0;
+const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
 
-        // --- DOM Elements ---
-        const canvas = document.getElementById('galtonCanvas');
-        const addBallBtn = document.getElementById('addBallBtn');
-        const add10BallsBtn = document.getElementById('add10BallsBtn');
-        const startAutoDropBtn = document.getElementById('startAutoDropBtn');
-        const stopAutoDropBtn = document.getElementById('stopAutoDropBtn');
-        const resetBtn = document.getElementById('resetBtn');
-        const ballCountDisplay = document.getElementById('ballCount');
+/* Box–Muller, cached */
+let gaussSpare=null;
+function gauss(){
+  if(gaussSpare!==null){ const v=gaussSpare; gaussSpare=null; return v; }
+  let u,v,s;
+  do{ u=Math.random()*2-1; v=Math.random()*2-1; s=u*u+v*v; }while(s>=1||s===0);
+  const f=Math.sqrt(-2*Math.log(s)/s);
+  gaussSpare=v*f; return u*f;
+}
 
-        // --- Debounce Function ---
-        function debounce(func, wait) {
-            let timeout;
-            return function executedFunction(...args) {
-                const later = () => {
-                    clearTimeout(timeout);
-                    func(...args);
-                };
-                clearTimeout(timeout);
-                timeout = setTimeout(later, wait);
-            };
+/* ==========================================================================
+   2.  Parameters
+   ========================================================================== */
+
+const P = {
+  rows:12, tiltDeg:0, dyFactor:0.80, ballF:0.22, pegF:0.16,
+  rest:0.35, fric:0.45, roughDeg:6, gravity:1,
+  ballBall:true,
+  rate:5, jitter:0.15, maxBalls:600,
+  speed:1,
+  showNormal:true, showRef:false, showSpin:true, showLabels:true,
+  freqMode:false
+};
+
+/* fixed logical units — physics is identical at any window size */
+const S        = 60;      // horizontal peg spacing
+/* Ball and peg radius are expressed in units of the peg spacing and set from
+   the parameters; a ball that is too small threads the array diagonally and
+   keeps its horizontal momentum instead of being turned at every row. */
+let R_PEG      = 8;
+let R_BALL     = 15;
+const WALL     = 14;
+const BOTTOM_BAND = 34;   // frame strip under the floor, carries the bin numbers
+const DIV_R    = 3;       // bin divider half-thickness
+const BIN_H    = 560;
+const G0       = 6000;    // logical units / s²
+const DT       = 1/300;
+const MAX_SUB  = 12;
+const SOLVER_IT= 2;
+const REST_VMIN= 95;      // below this approach speed, restitution is suppressed
+const SLEEP_V2 = 900;     // squared speed under which a ball may settle
+const SLEEP_W  = 2.4;
+const SLOP     = 0.4;     // penetration left uncorrected, so stacks stop buzzing
+const BIAS     = 0.85;
+const WAKE_V   = 100;     // relative speed needed to disturb a settled ball
+const PILE_DAMP= 7;       // granular damping inside the bins, per second
+const PILE_SPIN= 11;
+const DRAG     = 0.07;
+
+/* ==========================================================================
+   3.  Geometry
+   ========================================================================== */
+
+const G = {};   // geometry, rebuilt when rows / spacing change
+
+/* The ball has to clear both the gap within a row and the narrower diagonal
+   throat between consecutive rows, so its radius is capped by the peg radius
+   and the row spacing; without the cap some slider combinations wall the
+   board off completely. */
+function ballLimit(){
+  const lim = 0.5*Math.min(1, Math.sqrt(0.25 + P.dyFactor*P.dyFactor));
+  return Math.max(0.08, 0.85*lim - P.pegF);
+}
+function buildGeometry(){
+  R_BALL = Math.min(P.ballF, ballLimit()) * S;
+  R_PEG  = P.pegF  * S;
+  const n = P.rows;
+  const dy = P.dyFactor * S;
+  const innerW = (n+1)*S;
+
+  const xL = WALL, xR = WALL+innerW, yT = WALL;
+  const xc = xL + innerW/2;
+
+  /* short hopper; the ball is released at the throat so that it reaches the
+     apex peg with roughly the speed it will carry from row to row */
+  const yFunTop = yT + 8;
+  const yFunBot = yT + Math.max(50, 1.15*dy);
+  const funR    = 5;
+  /* the throat is comfortably wider than the ball: a tight throat squeezes the
+     ball against one wall under tilt and kicks it back uphill, which reverses
+     the bias at small angles */
+  const gap     = 2*(R_BALL + 14 + funR);
+  const funHalf = Math.min(1.8*S, innerW/2 - 8);
+
+  const y0 = yFunBot + 1.15*dy;                 // apex peg row
+  const yLast = y0 + (n-1)*dy;
+  const binTop = yLast + 1.2*dy;
+  const yB = binTop + BIN_H;                    // floor
+  const innerH = yB - yT;
+
+  G.n=n; G.dy=dy; G.innerW=innerW; G.innerH=innerH;
+  G.xL=xL; G.xR=xR; G.yT=yT; G.yB=yB; G.xc=xc;
+  G.y0=y0; G.yLast=yLast; G.binTop=binTop;
+  G.BW=innerW+2*WALL; G.BH=WALL+innerH+BOTTOM_BAND;
+  G.spawnY = yFunBot;
+
+  G.segs = [
+    {x1:xc-funHalf, y1:yFunTop, x2:xc-gap/2, y2:yFunBot, r:funR},
+    {x1:xc+funHalf, y1:yFunTop, x2:xc+gap/2, y2:yFunBot, r:funR}
+  ];
+
+  /* bin dividers: n interior walls, at the lattice half-column positions */
+  G.divs=[];
+  for(let j=0;j<n;j++) G.divs.push(xc + (j+0.5-n/2)*S);
+  G.divR = DIV_R;
+
+  /* bin centres */
+  G.binX=[];
+  for(let j=0;j<=n;j++) G.binX.push(xc + (j-n/2)*S);
+}
+
+/* Pegs sit on a staggered lattice indexed by a half-column coordinate m, with
+   m ≡ k (mod 2) in row k. The array spans the full width: a triangular array
+   would leave its outer edge unguarded, and a ball that once starts drifting
+   outwards then rides that edge all the way down instead of being turned back. */
+/* |m| is capped one half-column short of the wall: a peg flush against the
+   wall leaves a pocket too narrow for the ball, which then wedges there. */
+function rowMMax(){ return G.n - 1; }
+function rowMStart(k){ const M=rowMMax(); return ((M - k) % 2 === 0) ? -M : -M + 1; }
+function pegXm(m){ return G.xc + m*S/2; }
+
+/* ==========================================================================
+   4.  Physics state
+   ========================================================================== */
+
+const balls=[];               // {x,y,vx,vy,th,om,sleep,st,rec,bin,dying,fade}
+let counts = new Int32Array(P.rows+1);
+let total  = 0;
+let simTime = 0;
+let dropAcc = 0;
+let pending = 0;
+let running = true;
+let auto = false;
+
+/* spatial hash (linked list, no allocation in the hot loop) */
+let cellSize=2.6*R_BALL, gw=1, gh=1, head=new Int32Array(1), nxt=new Int32Array(64);
+
+function resetGrid(){
+  cellSize = 2.6*R_BALL;
+  gw = Math.max(1, Math.ceil(G.BW/cellSize));
+  gh = Math.max(1, Math.ceil(G.BH/cellSize));
+  head = new Int32Array(gw*gh);
+}
+function buildGrid(){
+  if(nxt.length < balls.length) nxt = new Int32Array(balls.length*2+64);
+  head.fill(-1);
+  for(let i=0;i<balls.length;i++){
+    const b=balls[i];
+    if(b.dying) { nxt[i]=-1; continue; }
+    const cx=clamp((b.x/cellSize)|0,0,gw-1), cy=clamp((b.y/cellSize)|0,0,gh-1);
+    const c=cy*gw+cx;
+    nxt[i]=head[c]; head[c]=i;
+  }
+}
+
+function spawn(){
+  const spread = P.jitter*S;
+  balls.push({
+    x: G.xc + (Math.random()-0.5)*spread,
+    y: G.spawnY,
+    vx:0, vy:0, th:Math.random()*6.283, om:0,
+    sleep:false, st:0, rec:false, recT:0, bin:-1,
+    dying:false, fade:1, born:simTime
+  });
+}
+
+function clearBalls(){ balls.length=0; pending=0; invalidatePile(); }
+
+function resetStats(){
+  counts = new Int32Array(P.rows+1);
+  total = 0;
+  statsDirty = true; plotDirty = true;
+}
+
+function fullReset(){
+  clearBalls(); resetStats(); simTime=0; dropAcc=0;
+}
+
+/* ---- static collision: one ball against pegs, walls, dividers, floor ---- */
+
+function solveStatic(b){
+  const rb=R_BALL;
+  const rough = P.roughDeg*Math.PI/180;
+
+  /* --- pegs: analytic nearest-neighbour on the triangular lattice --- */
+  const kf = (b.y-G.y0)/G.dy;
+  const k0 = Math.floor(kf)-1;
+  for(let k=k0;k<=k0+2;k++){
+    if(k<0||k>=G.n) continue;
+    const py=G.y0+k*G.dy;
+    if(Math.abs(b.y-py) > rb+R_PEG) continue;
+    const M = rowMMax();
+    const par = k & 1;
+    const mf = 2*(b.x-G.xc)/S;
+    const m0 = Math.round((mf-par)/2)*2 + par;
+    for(let m=m0-2; m<=m0+2; m+=2){
+      if(m < -M || m > M) continue;
+      const px=pegXm(m);
+      let dx=b.x-px, dy=b.y-py;
+      let d2=dx*dx+dy*dy;
+      const rr=rb+R_PEG;
+      if(d2>=rr*rr || d2===0) continue;
+      let d=Math.sqrt(d2);
+      let nx=dx/d, ny=dy/d;
+      /* micro-roughness: tilt the contact normal by a small random angle.
+         Applied to resting contacts as well — a ball balanced on the crown of
+         a peg is in unstable equilibrium, and this is what topples it. */
+      if(rough>0){
+        const a=gauss()*rough, ca=Math.cos(a), sa=Math.sin(a);
+        const tx=nx*ca-ny*sa, ty=nx*sa+ny*ca;
+        nx=tx; ny=ty;
+      }
+      contactStatic(b, nx, ny, rr-d, P.rest, P.fric);
+    }
+  }
+
+  /* --- side walls, scalloped with a bump on every row ---------------------
+     Without the bumps each wall leaves a peg-free gutter: a ball pushed
+     against it slides straight down into the outermost bin, which puts a
+     spurious spike on the end of the histogram. */
+  if(b.x-rb < G.xL) contactStatic(b, 1,0, G.xL-(b.x-rb), P.rest*0.6, P.fric);
+  if(b.x+rb > G.xR) contactStatic(b,-1,0, (b.x+rb)-G.xR, P.rest*0.6, P.fric);
+  if(b.y > G.y0-G.dy && b.y < G.binTop){
+    const kb = Math.round((b.y-G.y0)/G.dy);
+    for(let k=kb-1;k<=kb+1;k++){
+      if(k<0||k>=G.n) continue;
+      const py=G.y0+k*G.dy;
+      if(Math.abs(b.y-py) > rb+R_PEG) continue;
+      for(let w=0;w<2;w++){
+        const wx = w? G.xR : G.xL;
+        let dx=b.x-wx, dy2=b.y-py;
+        const rr=rb+R_PEG, d2=dx*dx+dy2*dy2;
+        if(d2>=rr*rr || d2===0) continue;
+        if(w? (dx>0) : (dx<0)) continue;        // only the exposed half
+        const d=Math.sqrt(d2);
+        contactStatic(b, dx/d, dy2/d, rr-d, P.rest*0.6, P.fric);
+      }
+    }
+  }
+
+  /* --- floor --- */
+  if(b.y+rb > G.yB) contactStatic(b, 0,-1, (b.y+rb)-G.yB, P.rest*0.35, Math.max(P.fric,0.25));
+
+  /* --- funnel capsules --- */
+  for(let s=0;s<G.segs.length;s++){
+    const g=G.segs[s];
+    const ex=g.x2-g.x1, ey=g.y2-g.y1;
+    const L2=ex*ex+ey*ey;
+    let t=((b.x-g.x1)*ex+(b.y-g.y1)*ey)/L2;
+    t=clamp(t,0,1);
+    const qx=g.x1+ex*t, qy=g.y1+ey*t;
+    let dx=b.x-qx, dy=b.y-qy;
+    const rr=rb+g.r;
+    let d2=dx*dx+dy*dy;
+    if(d2>=rr*rr||d2===0) continue;
+    const d=Math.sqrt(d2);
+    contactStatic(b, dx/d, dy/d, rr-d, P.rest*0.5, P.fric);
+  }
+
+  /* --- bin dividers (vertical capsules), only the one or two nearest --- */
+  if(b.y+rb > G.binTop - G.divR){
+    const fj = (b.x-G.xc)/S + G.n/2 - 0.5;
+    for(let j=Math.floor(fj); j<=Math.floor(fj)+1; j++){
+      if(j<0||j>=G.n) continue;
+      const dxv=G.divs[j];
+      const qy=clamp(b.y, G.binTop, G.yB);
+      let dx=b.x-dxv, dy=b.y-qy;
+      const rr=rb+G.divR;
+      let d2=dx*dx+dy*dy;
+      if(d2>=rr*rr||d2===0) continue;
+      const d=Math.sqrt(d2);
+      contactStatic(b, dx/d, dy/d, rr-d, P.rest*0.45, P.fric);
+    }
+  }
+}
+
+/* impulse response of a unit-mass disc against an immovable surface */
+function contactStatic(b, nx, ny, pen, e, mu){
+  if(pen>SLOP){ const c=(pen-SLOP)*BIAS; b.x += nx*c; b.y += ny*c; }
+  const I = 0.5*R_BALL*R_BALL;          // moment of inertia, unit mass
+  const rx = -nx*R_BALL, ry = -ny*R_BALL;
+  const cvx = b.vx - b.om*ry;
+  const cvy = b.vy + b.om*rx;
+  const vn  = cvx*nx + cvy*ny;
+  if(vn >= 0) return;
+  const ee  = (-vn > REST_VMIN) ? e : 0;
+  const jn  = -(1+ee)*vn;
+  b.vx += nx*jn; b.vy += ny*jn;
+  if(mu>0){
+    let tx = cvx - nx*vn, ty = cvy - ny*vn;
+    const vt = Math.hypot(tx,ty);
+    if(vt > 1e-7){
+      tx/=vt; ty/=vt;
+      const rct = rx*ty - ry*tx;
+      const kt  = 1 + rct*rct/I;
+      let jt = -vt/kt;
+      const maxF = mu*jn;
+      if(jt < -maxF) jt = -maxF;
+      b.vx += tx*jt; b.vy += ty*jt;
+      b.om += (rx*(ty*jt) - ry*(tx*jt))/I;
+    }
+  }
+  if(b.sleep && (-vn > WAKE_V)) wake(b);
+}
+
+function wake(b){ if(b.sleep) invalidatePile(); b.sleep=false; b.st=0; b.piled=false; }
+
+/* ---- ball-ball ---- */
+const BB_E = 0.18, BB_MU = 0.22;
+
+function solveBallBall(){
+  const rr = 2*R_BALL, rr2 = rr*rr;
+  const I = 0.5*R_BALL*R_BALL;
+  /* only awake balls drive the search; a sleeping pile costs nothing */
+  for(let i=0;i<balls.length;i++){
+    const a=balls[i];
+    if(a.dying||a.sleep) continue;
+    const cx=clamp((a.x/cellSize)|0,0,gw-1), cy=clamp((a.y/cellSize)|0,0,gh-1);
+    for(let oy=-1;oy<=1;oy++){
+      const yy=cy+oy; if(yy<0||yy>=gh) continue;
+      for(let ox=-1;ox<=1;ox++){
+        const xx=cx+ox; if(xx<0||xx>=gw) continue;
+        for(let j=head[yy*gw+xx]; j!==-1; j=nxt[j]){
+          if(j===i) continue;
+          const b=balls[j];
+          if(b.dying) continue;
+          if(!b.sleep && j<i) continue;   // awake–awake pairs handled once
+          let dx=b.x-a.x, dy=b.y-a.y;
+          let d2=dx*dx+dy*dy;
+          if(d2>=rr2||d2===0) continue;
+          const d=Math.sqrt(d2);
+          const nx=dx/d, ny=dy/d, pen=rr-d;
+
+          const aS=a.sleep, bS=b.sleep;
+          if(aS&&bS) continue;
+          /* positional correction, leaving a little slop */
+          if(pen>SLOP){
+            const c=(pen-SLOP)*BIAS;
+            if(aS){ b.x+=nx*c; b.y+=ny*c; }
+            else if(bS){ a.x-=nx*c; a.y-=ny*c; }
+            else{ const h=c*0.5; a.x-=nx*h; a.y-=ny*h; b.x+=nx*h; b.y+=ny*h; }
+          }
+
+          /* contact-point velocities */
+          const arx=nx*R_BALL, ary=ny*R_BALL;
+          const brx=-arx,       bry=-ary;
+          const avx=a.vx-a.om*ary, avy=a.vy+a.om*arx;
+          const bvx=b.vx-b.om*bry, bvy=b.vy+b.om*brx;
+          const rvx=bvx-avx, rvy=bvy-avy;
+          const vn=rvx*nx+rvy*ny;
+          if(vn>=0) continue;
+          if(aS && -vn>WAKE_V) wake(a);
+          if(bS && -vn>WAKE_V) wake(b);
+
+          const ma = a.sleep?0:1, mb = b.sleep?0:1;
+          const kn = ma+mb;
+          if(kn===0) continue;
+          const ee = (-vn>REST_VMIN)?BB_E:0;
+          const jn = -(1+ee)*vn/kn;
+          if(ma){ a.vx-=nx*jn; a.vy-=ny*jn; }
+          if(mb){ b.vx+=nx*jn; b.vy+=ny*jn; }
+
+          let tx=rvx-nx*vn, ty=rvy-ny*vn;
+          const vt=Math.hypot(tx,ty);
+          if(vt>1e-7){
+            tx/=vt; ty/=vt;
+            const rcta=arx*ty-ary*tx, rctb=brx*ty-bry*tx;
+            const kt=kn + (ma?rcta*rcta/I:0) + (mb?rctb*rctb/I:0);
+            let jt=-vt/kt;
+            const maxF=BB_MU*jn;
+            if(jt<-maxF) jt=-maxF;
+            if(ma){ a.vx-=tx*jt; a.vy-=ty*jt; a.om-=(arx*(ty*jt)-ary*(tx*jt))/I; }
+            if(mb){ b.vx+=tx*jt; b.vy+=ty*jt; b.om+=(brx*(ty*jt)-bry*(tx*jt))/I; }
+          }
         }
+      }
+    }
+  }
+}
 
-        // --- Core Functions ---
-        function updateDynamicDimensions() {
-            const controlsElement = document.getElementById('controls');
-            const controlsHeight = controlsElement ? controlsElement.offsetHeight : 60;
-            
-            const availableWidth = window.innerWidth - 20; 
-            const availableHeight = window.innerHeight - controlsHeight - 30; 
+/* ---- one physics step ---- */
+function step(dt){
+  const a  = P.tiltDeg*Math.PI/180;
+  const g  = G0*P.gravity;
+  const gx = g*Math.sin(a), gy = g*Math.cos(a);
+  const damp = Math.max(0, 1 - DRAG*dt);
 
-            const targetAspectRatio = 5 / 7; 
-            let newCanvasWidth, newCanvasHeight;
+  for(let i=0;i<balls.length;i++){
+    const b=balls[i];
+    if(b.dying){ b.fade -= dt*3.2; continue; }
+    if(b.sleep) continue;
+    b.vx=(b.vx+gx*dt)*damp;
+    b.vy=(b.vy+gy*dt)*damp;
+    /* a heap of beads loses energy fast; without this the piles simmer for
+       ever and every ball stays in the solver */
+    if(b.rec && b.y>G.binTop){
+      const d2=1-PILE_DAMP*dt, d3=1-PILE_SPIN*dt;
+      b.vx*=d2; b.vy*=d2; b.om*=d3;
+    }
+    b.x+=b.vx*dt; b.y+=b.vy*dt;
+    b.th+=b.om*dt;
+  }
 
-            if (availableWidth / availableHeight > targetAspectRatio) {
-                newCanvasHeight = Math.max(250, availableHeight); 
-                newCanvasWidth = newCanvasHeight * targetAspectRatio;
-            } else {
-                newCanvasWidth = Math.max(200, availableWidth); 
-                newCanvasHeight = newCanvasWidth / targetAspectRatio;
-            }
-            
-            canvasWidth = Math.min(newCanvasWidth, 500);
-            canvasHeight = Math.min(newCanvasHeight, 700);
-            
-            canvasWidth = Math.min(canvasWidth, availableWidth);
-            canvasHeight = Math.min(canvasHeight, availableHeight);
+  if(P.ballBall) buildGrid();
 
+  for(let it=0; it<SOLVER_IT; it++){
+    for(let i=0;i<balls.length;i++){
+      const b=balls[i];
+      if(b.dying||b.sleep) continue;
+      solveStatic(b);
+    }
+    if(P.ballBall) solveBallBall();
+  }
 
-            canvas.width = Math.round(canvasWidth); 
-            canvas.height = Math.round(canvasHeight);
+  /* record bin entry, update sleep state */
+  for(let i=0;i<balls.length;i++){
+    const b=balls[i];
+    if(b.dying) continue;
+    if(!b.rec && b.y > G.binTop + R_BALL*0.4){
+      let j = Math.round((b.x-G.xc)/S + G.n/2);
+      j = clamp(j, 0, G.n);
+      b.bin=j; b.rec=true; b.recT=simTime;
+      counts[j]++; total++; statsDirty=true;
+    }
+    /* only balls that have reached the bins are allowed to sleep, so nothing
+       can come permanently to rest inside the peg field */
+    const sp = b.vx*b.vx+b.vy*b.vy;
+    if(!b.sleep && b.y > G.binTop){
+      if(sp < SLEEP_V2 && Math.abs(b.om) < SLEEP_W){
+        b.st += dt;
+        if(b.st > 0.25){ b.sleep=true; b.vx=b.vy=b.om=0; }
+      } else b.st = 0;
+    }
+  }
+}
 
-            firstPegRowY = canvasHeight * FIRST_PEG_ROW_Y_FACTOR;
-            pegSpacingY = canvasHeight * PEG_SPACING_Y_FACTOR;
-            binHeight = canvasHeight * BIN_HEIGHT_FACTOR;
-            topFunnelHeight = canvasHeight * TOP_FUNNEL_HEIGHT_FACTOR;
-            topFunnelWidthEntry = BALL_RADIUS * 4; 
+/* a ball that has spent far too long in the peg field is wedged; give it a
+   shake, as one would the real thing */
+function unstick(){
+  for(let i=0;i<balls.length;i++){
+    const b=balls[i];
+    if(!b.dying && !b.rec && simTime-b.born > 6){
+      b.vx += (Math.random()-0.5)*260;
+      b.vy += 90;
+      b.om += (Math.random()-0.5)*14;
+      b.born = simTime - 3;
+    }
+  }
+}
+
+/* keep the board bounded: retire the balls sitting highest in the piles, so
+   the stacks freeze at their current height instead of collapsing */
+function cull(){
+  let live=0;
+  for(let i=0;i<balls.length;i++) if(!balls[i].dying) live++;
+  let over = live - P.maxBalls;
+
+  /* Retire settled balls that reach the fill line. If a pile is allowed to
+     grow to the top of its bin the mound blocks the array above it, which
+     both jams the board and quietly distorts the histogram. */
+  const fillLine = G.binTop + BIN_H*0.22;
+  for(let i=0;i<balls.length;i++){
+    const b=balls[i];
+    if(b.dying || !b.rec || b.y >= fillLine) continue;
+    /* on a tilted board a heap creeps downhill and never quite settles, so the
+       sleep test alone would let it grow over the dividers */
+    if(b.sleep || simTime-b.recT > 2){ b.dying=true; over--; invalidatePile(); }
+  }
+  if(over>0){
+    const cand=[];
+    for(let i=0;i<balls.length;i++){
+      const b=balls[i];
+      if(!b.dying && b.sleep) cand.push(b);
+    }
+    cand.sort((u,v)=>u.y-v.y);           // smallest y = top of a pile
+    for(let i=0;i<Math.min(over,cand.length);i++){ cand[i].dying=true; invalidatePile(); }
+  }
+  for(let i=balls.length-1;i>=0;i--) if(balls[i].dying && balls[i].fade<=0) balls.splice(i,1);
+  if(over>0) invalidatePile();
+}
+
+/* ==========================================================================
+   5.  Statistics
+   ========================================================================== */
+
+let statsDirty=true;
+const ST={};
+
+function computeStats(){
+  const n=G.n;
+  let N=total, mean=0, m2=0;
+  for(let j=0;j<=n;j++) mean += j*counts[j];
+  mean = N? mean/N : 0;
+  for(let j=0;j<=n;j++){ const d=j-mean; m2 += d*d*counts[j]; }
+  const varS = N>1 ? m2/(N-1) : 0;
+
+  const p = N ? clamp(mean/n, 1e-6, 1-1e-6) : 0.5;
+  const pmf=new Float64Array(n+1);
+  for(let j=0;j<=n;j++) pmf[j]=binomPMF(n,j,p);
+
+  /* Pearson chi-square with left-to-right pooling to expected ≥ 5 */
+  let chi2=0, cells=0;
+  if(N>0){
+    let accO=0, accE=0;
+    const O=[],E=[];
+    for(let j=0;j<=n;j++){
+      accO+=counts[j]; accE+=N*pmf[j];
+      if(accE>=5){ O.push(accO); E.push(accE); accO=0; accE=0; }
+    }
+    if(accE>0){
+      if(E.length){ O[O.length-1]+=accO; E[E.length-1]+=accE; }
+      else { O.push(accO); E.push(accE); }
+    }
+    for(let i=0;i<E.length;i++){ const d=O[i]-E[i]; chi2 += d*d/E[i]; }
+    cells=E.length;
+  }
+  const df = cells-2;                       // one parameter (p) estimated
+  const pv = df>0 ? chiSqUpper(chi2,df) : NaN;
+
+  let tv=0;
+  if(N>0) for(let j=0;j<=n;j++) tv += Math.abs(counts[j]/N - pmf[j]);
+  tv/=2;
+
+  ST.N=N; ST.mean=mean; ST.varS=varS; ST.p=p; ST.pmf=pmf;
+  ST.chi2=chi2; ST.df=df; ST.pv=pv; ST.tv=tv;
+  ST.sd=Math.sqrt(varS); ST.sdTheory=Math.sqrt(n*p*(1-p));
+  statsDirty=false;
+}
+
+/* ==========================================================================
+   6.  Rendering — the apparatus
+   ========================================================================== */
+
+const C={
+  paper:"#FBF9F4", frame:"#EFEADC", frameLine:"#C9C2B4",
+  peg:"#8C8376", pegLine:"#6D6558",
+  div:"#B9B1A1",
+  ball:"#B0472F", ballLine:"#853423",
+  ballRest:"#C2705A",
+  label:"#9E9A90",
+  ink:"#1B1F23", ink3:"#8B9096", blue:"#2F5D7C", ref:"#9A9489"
+};
+const UIFONT = 'ui-sans-serif,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif';
+
+const boardCv=document.getElementById("board");
+const bctx=boardCv.getContext("2d");
+const bgCv=document.getElementById("boardBg");
+const gctx=bgCv.getContext("2d");
+const plotCv=document.getElementById("plot");
+const pctx=plotCv.getContext("2d");
+
+const TAU=6.283185307179586;
+
+function fitCanvas(cv,ctx){
+  const dpr=Math.min(window.devicePixelRatio||1, 2);
+  const w=cv.clientWidth, h=cv.clientHeight;
+  if(!w||!h) return false;
+  const W=Math.round(w*dpr), H=Math.round(h*dpr);
+  if(cv.width!==W||cv.height!==H){ cv.width=W; cv.height=H; }
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return true;
+}
+
+/* board coordinates -> screen: the whole apparatus is rotated by the tilt and
+   scaled to fit, so a ball always falls straight down on screen */
+let boardK=1;
+function applyBoardTransform(ctx,w,h){
+  const a=P.tiltDeg*Math.PI/180, ca=Math.abs(Math.cos(a)), sa=Math.abs(Math.sin(a));
+  const bw=G.BW*ca+G.BH*sa, bh=G.BW*sa+G.BH*ca;
+  const pad=14;
+  const k=Math.min((w-2*pad)/bw,(h-2*pad)/bh);
+  ctx.save();
+  ctx.translate(w/2,h/2);
+  ctx.rotate(a);
+  ctx.scale(k,k);
+  ctx.translate(-G.BW/2,-G.BH/2);
+  boardK=k;
+  return k;
+}
+
+/* ---- background layer: frame, pegs, dividers, and the settled piles ------
+   Repainted only when the view or the geometry changes; a ball that has just
+   come to rest is stamped onto it individually.                            */
+let bgSig="", bgDirty=true;
+function invalidatePile(){ bgDirty=true; }
+
+function paintBall(ctx,b,k,fill){
+  ctx.fillStyle=fill;
+  ctx.strokeStyle=C.ballLine;
+  ctx.lineWidth=1.1/k;
+  ctx.beginPath(); ctx.arc(b.x,b.y,R_BALL,0,TAU); ctx.fill(); ctx.stroke();
+}
+
+function drawBackground(){
+  if(!fitCanvas(bgCv,gctx)) return false;
+  const w=bgCv.clientWidth, h=bgCv.clientHeight;
+  const sig=`${bgCv.width}x${bgCv.height}|${P.tiltDeg}|${G.n}|${G.dy}|${R_BALL}|${R_PEG}|${P.showLabels}`;
+  const full = sig!==bgSig || bgDirty;
+  if(!full){
+    /* stamp any newly settled balls onto the cached layer */
+    let pending=false;
+    for(let i=0;i<balls.length;i++){ const b=balls[i]; if(b.sleep&&!b.dying&&!b.piled){ pending=true; break; } }
+    if(!pending) return true;
+    const k=applyBoardTransform(gctx,w,h);
+    for(let i=0;i<balls.length;i++){
+      const b=balls[i];
+      if(b.sleep&&!b.dying&&!b.piled){ paintBall(gctx,b,k,C.ballRest); b.piled=true; }
+    }
+    gctx.restore();
+    return true;
+  }
+
+  bgSig=sig; bgDirty=false;
+  gctx.clearRect(0,0,w,h);
+  const k=applyBoardTransform(gctx,w,h);
+  const hair=1/k;
+
+  gctx.fillStyle=C.frame;
+  roundRect(gctx,0,0,G.BW,G.BH,7/k); gctx.fill();
+  gctx.fillStyle=C.paper;
+  gctx.fillRect(G.xL,G.yT,G.innerW,G.innerH);
+  gctx.strokeStyle=C.frameLine; gctx.lineWidth=hair;
+  gctx.strokeRect(G.xL-hair/2,G.yT-hair/2,G.innerW+hair,G.innerH+hair);
+  roundRect(gctx,hair/2,hair/2,G.BW-hair,G.BH-hair,7/k); gctx.stroke();
+
+  gctx.lineCap="round";
+  for(let s=0;s<G.segs.length;s++){
+    const g=G.segs[s];
+    gctx.strokeStyle = C.peg;
+    gctx.lineWidth=2*g.r;
+    gctx.beginPath(); gctx.moveTo(g.x1,g.y1); gctx.lineTo(g.x2,g.y2); gctx.stroke();
+  }
+
+  gctx.strokeStyle=C.div; gctx.lineWidth=2*G.divR;
+  gctx.beginPath();
+  for(const x of G.divs){ gctx.moveTo(x,G.binTop); gctx.lineTo(x,G.yB-1); }
+  gctx.stroke();
+
+  gctx.fillStyle=C.peg;
+  gctx.beginPath();
+  const mMax=rowMMax();
+  for(let k2=0;k2<G.n;k2++){
+    const y=G.y0+k2*G.dy;
+    for(let m=rowMStart(k2); m<=mMax; m+=2){
+      const x=pegXm(m);
+      gctx.moveTo(x+R_PEG,y);
+      gctx.arc(x,y,R_PEG,0,TAU);
+    }
+  }
+  for(let k2=0;k2<G.n;k2++){
+    const y=G.y0+k2*G.dy;
+    gctx.moveTo(G.xL,y-R_PEG); gctx.arc(G.xL,y,R_PEG,-Math.PI/2,Math.PI/2);
+    gctx.moveTo(G.xR,y+R_PEG); gctx.arc(G.xR,y,R_PEG,Math.PI/2,3*Math.PI/2);
+  }
+  gctx.fill();
+  gctx.strokeStyle=C.pegLine; gctx.lineWidth=hair*1.1; gctx.stroke();
+
+  if(P.showLabels && k*S>16){
+    gctx.fillStyle=C.label;
+    gctx.font=`${Math.round(BOTTOM_BAND*0.62)}px ${UIFONT}`;
+    gctx.textAlign="center"; gctx.textBaseline="middle";
+    const ly = G.yB + BOTTOM_BAND/2;
+    for(let j=0;j<=G.n;j++) gctx.fillText(String(j), G.binX[j], ly);
+  }
+
+  /* the whole pile, bottom-up so later arrivals overlap earlier ones */
+  const settled=[];
+  for(let i=0;i<balls.length;i++){ const b=balls[i]; b.piled=false; if(b.sleep&&!b.dying) settled.push(b); }
+  settled.sort((u,v)=>v.y-u.y);
+  for(const b of settled){ paintBall(gctx,b,k,C.ballRest); b.piled=true; }
+
+  gctx.restore();
+  return true;
+}
+
+/* ---- foreground layer: only the balls still in play ---------------------- */
+function drawForeground(){
+  if(!fitCanvas(boardCv,bctx)) return;
+  const w=boardCv.clientWidth, h=boardCv.clientHeight;
+  bctx.clearRect(0,0,w,h);
+  const k=applyBoardTransform(bctx,w,h);
+  const hair=1/k;
+
+  bctx.beginPath();
+  let any=false;
+  for(let i=0;i<balls.length;i++){
+    const b=balls[i];
+    if(b.dying||b.sleep) continue;
+    bctx.moveTo(b.x+R_BALL,b.y);
+    bctx.arc(b.x,b.y,R_BALL,0,TAU);
+    any=true;
+  }
+  if(any){
+    bctx.fillStyle=C.ball; bctx.fill();
+    bctx.strokeStyle=C.ballLine; bctx.lineWidth=hair*1.1; bctx.stroke();
+  }
+
+  if(any && P.showSpin && k*R_BALL>4){
+    bctx.strokeStyle="rgba(255,247,242,.72)";
+    bctx.lineWidth=Math.max(hair*1.5,1.8);
+    bctx.beginPath();
+    for(let i=0;i<balls.length;i++){
+      const b=balls[i];
+      if(b.dying||b.sleep) continue;
+      bctx.moveTo(b.x,b.y);
+      bctx.lineTo(b.x+Math.cos(b.th)*R_BALL*0.6, b.y+Math.sin(b.th)*R_BALL*0.6);
+    }
+    bctx.stroke();
+  }
+
+  for(let i=0;i<balls.length;i++){
+    const b=balls[i];
+    if(!b.dying || b.fade<=0) continue;
+    bctx.globalAlpha=b.fade;
+    paintBall(bctx,b,k,C.ballRest);
+  }
+  bctx.globalAlpha=1;
+  bctx.restore();
+
+  /* gravity indicator, in screen space so it always points down */
+  if(Math.abs(P.tiltDeg)>0.05){
+    const gx=w-28, gy=32, L=20;
+    bctx.strokeStyle=C.ink3; bctx.lineWidth=1.2;
+    bctx.beginPath(); bctx.moveTo(gx,gy-L/2); bctx.lineTo(gx,gy+L/2); bctx.stroke();
+    bctx.beginPath();
+    bctx.moveTo(gx,gy+L/2+4); bctx.lineTo(gx-3.6,gy+L/2-2); bctx.lineTo(gx+3.6,gy+L/2-2);
+    bctx.closePath(); bctx.fillStyle=C.ink3; bctx.fill();
+    bctx.font="italic 12px "+UIFONT;
+    bctx.textAlign="center"; bctx.textBaseline="bottom";
+    bctx.fillText("g", gx, gy-L/2-3);
+  }
+}
+
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+
+/* ==========================================================================
+   7.  Rendering — the distribution
+   ========================================================================== */
+
+function niceTicks(max,target){
+  if(max<=0) return [0,1];
+  const raw=max/target;
+  const mag=Math.pow(10,Math.floor(Math.log10(raw)));
+  const norm=raw/mag;
+  const stepN = norm<1.5?1 : norm<3?2 : norm<7?5 : 10;
+  const step=stepN*mag;
+  const out=[];
+  for(let v=0; v<=max*1.0000001+step; v+=step) out.push(v);
+  return out;
+}
+
+function drawPlot(){
+  if(!fitCanvas(plotCv,pctx)) return;
+  if(statsDirty) computeStats();
+  const w=plotCv.clientWidth, h=plotCv.clientHeight;
+  pctx.clearRect(0,0,w,h);
+  const n=G.n, N=ST.N;
+
+  const mL=54, mR=14, mT=14, mB=32;
+  const pw=w-mL-mR, ph=h-mT-mB;
+  if(pw<40||ph<40) return;
+
+  const freq=P.freqMode;
+  const scale = freq ? (N?1/N:1) : 1;
+
+  /* upper limit: max of observed and every displayed curve */
+  let top=0;
+  for(let j=0;j<=n;j++) top=Math.max(top, counts[j]*scale);
+  const cScale = freq ? 1 : N;
+  for(let j=0;j<=n;j++) top=Math.max(top, ST.pmf[j]*cScale);
+  if(P.showRef) for(let j=0;j<=n;j++) top=Math.max(top, binomPMF(n,j,0.5)*cScale);
+  if(top<=0) top = freq?0.4:10;
+  const ticks=niceTicks(top,5);
+  const yMax=ticks[ticks.length-1]||top;
+
+  const X = j => mL + (j+0.5)/(n+1)*pw;
+  const Y = v => mT + ph - (v/yMax)*ph;
+  const bw = pw/(n+1);
+
+  /* grid + y ticks */
+  pctx.font="11px "+UIFONT;
+  pctx.textAlign="right"; pctx.textBaseline="middle";
+  for(const t of ticks){
+    const y=Y(t);
+    pctx.strokeStyle = t===0 ? C.frameLine : "#EFEADF";
+    pctx.lineWidth=1;
+    pctx.beginPath(); pctx.moveTo(mL,Math.round(y)+.5); pctx.lineTo(mL+pw,Math.round(y)+.5); pctx.stroke();
+    pctx.fillStyle=C.ink3;
+    pctx.fillText(freq? t.toFixed(2) : String(t), mL-8, y);
+  }
+
+  /* bars */
+  pctx.fillStyle="rgba(176,71,47,.16)";
+  pctx.strokeStyle=C.ball; pctx.lineWidth=1;
+  for(let j=0;j<=n;j++){
+    const v=counts[j]*scale; if(v<=0) continue;
+    const x=Math.round(X(j)-bw*0.40)+.5, y=Math.round(Y(v))+.5;
+    const bh2=Y(0)-Y(v), bwd=Math.round(bw*0.80);
+    pctx.fillRect(x,y,bwd,bh2);
+    pctx.strokeRect(x,y,bwd,bh2);
+  }
+
+  /* reference Bin(n, 1/2) */
+  if(P.showRef){
+    pctx.strokeStyle=C.ref; pctx.lineWidth=1.3; pctx.setLineDash([2,3]);
+    pctx.beginPath();
+    for(let j=0;j<=n;j++){ const v=binomPMF(n,j,0.5)*cScale; j? pctx.lineTo(X(j),Y(v)) : pctx.moveTo(X(j),Y(v)); }
+    pctx.stroke(); pctx.setLineDash([]);
+  }
+
+  /* normal approximation */
+  if(P.showNormal && N>0){
+    const mu=n*ST.p, sg=Math.sqrt(n*ST.p*(1-ST.p));
+    if(sg>1e-6){
+      pctx.strokeStyle=C.blue; pctx.lineWidth=1.4; pctx.setLineDash([4,3]);
+      pctx.beginPath();
+      const steps=220;
+      for(let i=0;i<=steps;i++){
+        const x=-0.5 + i/steps*(n+1);
+        const d=Math.exp(-(x-mu)*(x-mu)/(2*sg*sg))/(sg*2.5066282746310002);
+        const px=mL+(x+0.5)/(n+1)*pw;
+        i? pctx.lineTo(px,Y(d*cScale)) : pctx.moveTo(px,Y(d*cScale));
+      }
+      pctx.stroke(); pctx.setLineDash([]);
+    }
+  }
+
+  /* fitted binomial */
+  if(N>0){
+    pctx.strokeStyle=C.ink; pctx.lineWidth=1.6;
+    pctx.beginPath();
+    for(let j=0;j<=n;j++){ const v=ST.pmf[j]*cScale; j? pctx.lineTo(X(j),Y(v)) : pctx.moveTo(X(j),Y(v)); }
+    pctx.stroke();
+    pctx.fillStyle=C.ink;
+    for(let j=0;j<=n;j++){
+      const v=ST.pmf[j]*cScale;
+      pctx.beginPath(); pctx.arc(X(j),Y(v),2.3,0,6.2832); pctx.fill();
+    }
+  }
+
+  /* x axis */
+  pctx.strokeStyle=C.frameLine; pctx.lineWidth=1;
+  pctx.beginPath(); pctx.moveTo(mL,Math.round(Y(0))+.5); pctx.lineTo(mL+pw,Math.round(Y(0))+.5); pctx.stroke();
+  pctx.fillStyle=C.ink3; pctx.textAlign="center"; pctx.textBaseline="top";
+  const skip = bw<20 ? Math.ceil(20/bw) : 1;
+  for(let j=0;j<=n;j++){
+    if(j%skip && j!==n) continue;
+    pctx.fillText(String(j), X(j), Y(0)+7);
+  }
+  pctx.save();
+  pctx.translate(13, mT+ph/2); pctx.rotate(-Math.PI/2);
+  pctx.textAlign="center"; pctx.textBaseline="middle"; pctx.fillStyle=C.ink3;
+  pctx.fillText(freq?"relative frequency":"balls", 0, 0);
+  pctx.restore();
+  pctx.fillStyle=C.ink3; pctx.textAlign="center"; pctx.textBaseline="bottom";
+  pctx.fillText("bin", mL+pw/2, h-2);
+}
+
+/* ==========================================================================
+   8.  Readouts
+   ========================================================================== */
+
+const statsBox=document.getElementById("statsBox");
+function fmt(v,d){ return isFinite(v)? v.toFixed(d) : "–"; }
+
+function drawStats(){
+  if(statsDirty) computeStats();
+  const N=ST.N;
+  const pvTxt = !isFinite(ST.pv) ? "–"
+              : ST.pv<1e-4 ? "&lt;0.0001" : ST.pv.toFixed(4);
+  const rows=[
+    ["balls", N ? String(N) : "0", ""],
+    ["mean", N?fmt(ST.mean,3):"–", N?`of n = ${G.n}`:""],
+    ["p̂", N?fmt(ST.p,4):"–", "mean ⁄ n"],
+    ["sd", N?fmt(ST.sd,3):"–", N?`binomial ${fmt(ST.sdTheory,3)}`:""],
+    ["χ²", N?fmt(ST.chi2,2):"–", ST.df>0?`df ${ST.df}`:""],
+    ["P(χ² ≥ obs)", pvTxt, ""],
+    ["d<sub>TV</sub>", N?fmt(ST.tv,4):"–", "to Bin(n, p̂)"]
+  ];
+  statsBox.innerHTML = rows.map(r=>
+    `<div class="stat"><dt>${r[0]}</dt><dd>${r[1]}${r[2]?` <small>${r[2]}</small>`:""}</dd></div>`
+  ).join("");
+}
+
+const boardNote=document.getElementById("boardNote");
+const fpsEl=document.getElementById("fps");
+
+/* ==========================================================================
+   9.  Main loop
+   ========================================================================== */
+
+let last=performance.now(), acc=0, cullAcc=0, unstickAcc=0, releaseAcc=0;
+let frames=0, fpsAcc=0, statTick=0, plotDirty=true;
+
+function frame(now){
+  const raw=Math.min((now-last)/1000, 0.1);
+  last=now;
+
+  if(running){
+    const scaled=raw*P.speed;
+    acc+=scaled;
+    let steps=Math.floor(acc/DT);
+    if(steps>MAX_SUB){ steps=MAX_SUB; acc=0; } else acc-=steps*DT;
+
+    for(let s=0;s<steps;s++){
+      /* release */
+      if(auto){
+        dropAcc += P.rate*DT;
+        while(dropAcc>=1){ dropAcc-=1; pending++; }
+      }
+      if(pending>0){
+        releaseAcc += DT;
+        const iv = 1/Math.max(P.rate, 8);
+        const room = balls.length < P.maxBalls*1.2;
+        while(pending>0 && releaseAcc>=iv){
+          releaseAcc-=iv;
+          if(room) spawn();
+          pending--;
         }
+        if(pending>400) pending=400;
+      } else releaseAcc=0;
+      step(DT);
+      simTime+=DT;
+    }
 
-        function setupSimulation() {
-            updateDynamicDimensions();
+    cullAcc+=raw;
+    if(cullAcc>0.4){ cullAcc=0; cull(); }
+    unstickAcc+=raw;
+    if(unstickAcc>2.5){ unstickAcc=0; unstick(); }
+  }
 
-            if (engine) { 
-                Render.stop(render);
-                Runner.stop(runner);
-                Engine.clear(engine); 
-            }
+  drawBackground();
+  drawForeground();
 
-            engine = Engine.create();
-            world = engine.world;
-            engine.gravity.y = 1; 
+  /* the plot only changes when a ball is counted, so redraw it on a slow
+     cadence instead of every frame */
+  statTick+=raw;
+  if(statTick>0.15 || plotDirty){ statTick=0; plotDirty=false; drawPlot(); drawStats(); }
 
-            render = Render.create({
-                canvas: canvas,
-                engine: engine,
-                options: {
-                    width: canvasWidth,
-                    height: canvasHeight,
-                    wireframes: false,
-                    background: COLOR_BACKGROUND,
-                    pixelRatio: window.devicePixelRatio || 1 
-                }
-            });
+  frames++; fpsAcc+=raw;
+  if(fpsAcc>0.6){
+    let live=0; for(const b of balls) if(!b.dying) live++;
+    fpsEl.textContent=`${Math.round(frames/fpsAcc)} fps`;
+    boardNote.textContent=`${G.n} rows · ${G.n+1} bins · tilt ${P.tiltDeg.toFixed(1)}° · ${live} balls`;
+    frames=0; fpsAcc=0;
+  }
+  requestAnimationFrame(frame);
+}
 
-            runner = Runner.create();
+/* ==========================================================================
+   10.  UI
+   ========================================================================== */
 
-            addStaticElements();
-            addPegs();
+const $=id=>document.getElementById(id);
+const flashEl=$("flash");
+let flashT=null;
+function flash(msg){
+  flashEl.textContent=msg; flashEl.classList.add("show");
+  clearTimeout(flashT);
+  flashT=setTimeout(()=>flashEl.classList.remove("show"),1300);
+}
 
-            Render.run(render);
-            Runner.run(runner, engine);
+function bindRange(id,valId,key,fmtFn,onChange){
+  const el=$(id), out=$(valId);
+  const apply=()=>{
+    P[key]=parseFloat(el.value);
+    out.textContent=fmtFn(P[key]);
+    if(onChange) onChange();
+  };
+  el.addEventListener("input",apply);
+  apply();
+}
 
-            ballCounter = 0; 
-            updateBallCountDisplay();
-            if (ballDropIntervalId) { 
-                stopAutoDrop(); 
-            }
-            startAutoDropBtn.disabled = false; 
-            stopAutoDropBtn.disabled = true;
-        }
-        
-        function addStaticElements() {
-            const staticOptions = {
-                isStatic: true,
-                render: { fillStyle: COLOR_STRUCT }, 
-                restitution: 0.1, 
-                friction: 0.5
-            };
+function geometryChanged(){
+  buildGeometry(); resetGrid(); clearBalls(); resetStats();
+  $("vBins").textContent=String(P.rows+1);
+  const eff=R_BALL/S;
+  $("vBallF").textContent = eff.toFixed(3) + (eff < P.ballF-1e-6 ? " max" : "");
+}
+function physicsChanged(){
+  if(total>0){ resetStats(); flash("statistics reset"); }
+}
 
-            Composite.add(world, Bodies.rectangle( canvasWidth / 2, canvasHeight - WALL_THICKNESS / 2, canvasWidth, WALL_THICKNESS, staticOptions ));
-            Composite.add(world, Bodies.rectangle( WALL_THICKNESS / 2, canvasHeight / 2, WALL_THICKNESS, canvasHeight, staticOptions ));
-            Composite.add(world, Bodies.rectangle( canvasWidth - WALL_THICKNESS / 2, canvasHeight / 2, WALL_THICKNESS, canvasHeight, staticOptions ));
+bindRange("sRows","vRows","rows",v=>String(v),geometryChanged);
+bindRange("sTilt","vTilt","tiltDeg",v=>v.toFixed(1)+"°",physicsChanged);
+bindRange("sDy","vDy","dyFactor",v=>v.toFixed(2),geometryChanged);
+bindRange("sBallF","vBallF","ballF",v=>v.toFixed(3),geometryChanged);
+bindRange("sPegF","vPegF","pegF",v=>v.toFixed(3),geometryChanged);
+bindRange("sRest","vRest","rest",v=>v.toFixed(2),physicsChanged);
+bindRange("sFric","vFric","fric",v=>v.toFixed(2),physicsChanged);
+bindRange("sRough","vRough","roughDeg",v=>v.toFixed(1)+"°",physicsChanged);
+bindRange("sGrav","vGrav","gravity",v=>v.toFixed(2),null);
+bindRange("sRate","vRate","rate",v=>v+" /s",null);
+bindRange("sJit","vJit","jitter",v=>v.toFixed(2),physicsChanged);
+bindRange("sMax","vMax","maxBalls",v=>String(v),null);
+bindRange("sSpeed","vSpeed","speed",v=>v.toFixed(2)+"×",null);
 
-            const funnelWallCenterY = firstPegRowY - topFunnelHeight - FUNNEL_WALL_THICKNESS / 2; 
-            const funnelWallLength = (topFunnelHeight / Math.sin(TOP_FUNNEL_SLOPE_ANGLE)) * 1.2; 
-            const funnelWall_X_projection_half = (funnelWallLength / 2) * Math.cos(TOP_FUNNEL_SLOPE_ANGLE);
+function bindCheck(id,key,after){
+  const el=$(id);
+  el.addEventListener("change",()=>{ P[key]=el.checked; if(after) after(); });
+  P[key]=el.checked;
+}
+bindCheck("cBallBall","ballBall",physicsChanged);
+bindCheck("cNormal","showNormal",()=>{ $("lgNormal").hidden=!P.showNormal; plotDirty=true; });
+bindCheck("cRef","showRef",()=>{ $("lgRef").hidden=!P.showRef; plotDirty=true; });
+bindCheck("cSpin","showSpin");
+bindCheck("cLabels","showLabels");
+$("lgNormal").hidden=!P.showNormal;
+$("lgRef").hidden=!P.showRef;
 
-            Composite.add(world, Bodies.rectangle( canvasWidth / 2 - topFunnelWidthEntry / 2 - funnelWall_X_projection_half, funnelWallCenterY, funnelWallLength, FUNNEL_WALL_THICKNESS, { ...staticOptions, angle: TOP_FUNNEL_SLOPE_ANGLE } ));
-            Composite.add(world, Bodies.rectangle( canvasWidth / 2 + topFunnelWidthEntry / 2 + funnelWall_X_projection_half, funnelWallCenterY, funnelWallLength, FUNNEL_WALL_THICKNESS, { ...staticOptions, angle: -TOP_FUNNEL_SLOPE_ANGLE } ));
+const btnAuto=$("btnAuto"), btnPause=$("btnPause");
+function setAuto(v){
+  auto=v;
+  btnAuto.classList.toggle("on",auto);
+  btnAuto.classList.toggle("primary",!auto);
+  btnAuto.textContent = auto ? "Auto ■" : "Auto";
+}
+$("btnDrop").onclick=()=>{ pending++; };
+$("btnDrop100").onclick=()=>{ pending+=100; };
+btnAuto.onclick=()=>setAuto(!auto);
+btnPause.onclick=()=>{
+  running=!running;
+  btnPause.textContent=running?"Pause":"Resume";
+  btnPause.classList.toggle("on",!running);
+};
+$("btnClear").onclick=()=>{ clearBalls(); flash("balls cleared, counts kept"); };
+$("btnReset").onclick=()=>{ setAuto(false); fullReset(); flash("reset"); };
 
-            const binBottomY = canvasHeight - WALL_THICKNESS - binHeight / 2;
-            const totalContentWidth = canvasWidth - 2 * WALL_THICKNESS;
-            const binWidth = (totalContentWidth - (NUM_BINS - 1) * BIN_DIVIDER_THICKNESS) / NUM_BINS;
+$("btnCount").onclick=()=>{ P.freqMode=false; plotDirty=true; $("btnCount").classList.add("on"); $("btnFreq").classList.remove("on"); };
+$("btnFreq").onclick =()=>{ P.freqMode=true;  plotDirty=true; $("btnFreq").classList.add("on");  $("btnCount").classList.remove("on"); };
 
-            if (binWidth > BIN_DIVIDER_THICKNESS) { 
-                for (let i = 0; i < NUM_BINS - 1; i++) {
-                    const x = WALL_THICKNESS + (i + 1) * binWidth + i * BIN_DIVIDER_THICKNESS + BIN_DIVIDER_THICKNESS / 2;
-                    Composite.add(world, Bodies.rectangle( x, binBottomY, BIN_DIVIDER_THICKNESS, binHeight, staticOptions ));
-                }
-            }
-        }
+$("btnCopy").onclick=()=>{
+  if(statsDirty) computeStats();
+  let s="bin\tcount\texpected\n";
+  for(let j=0;j<=G.n;j++) s+=`${j}\t${counts[j]}\t${(ST.N*ST.pmf[j]).toFixed(4)}\n`;
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(s).then(()=>flash("copied to clipboard"),()=>flash("copy failed"));
+  } else flash("clipboard unavailable");
+};
 
-        function addPegs() {
-            const pegOptions = {
-                isStatic: true,
-                restitution: PEG_RESTITUTION,
-                friction: PEG_FRICTION,
-                render: { fillStyle: COLOR_PEG },
-                circleRadius: PEG_RADIUS
-            };
-            
-            const usableWidth = canvasWidth - 2 * WALL_THICKNESS - 2 * PEG_RADIUS; 
-            
-            // --- Updated optimalPegHorizSpacing calculation ---
-            const optimalPegHorizSpacing = Math.max(
-                BALL_RADIUS * PEG_HORIZ_SPACING_FACTOR_BALL, 
-                PEG_RADIUS * 2.1 // Min spacing to prevent pegs visually merging if factor is too low
-            );
+boardCv.addEventListener("pointerdown",()=>{ pending++; });
 
-            if (usableWidth < optimalPegHorizSpacing && NUM_PEG_ROWS > 0) {
-                // If not enough space for even one standard spacing, place a single column of pegs
-                for (let row = 0; row < NUM_PEG_ROWS; row++) {
-                    const y = firstPegRowY + row * pegSpacingY;
-                    if (y < canvasHeight - binHeight - WALL_THICKNESS - PEG_RADIUS && y > firstPegRowY - pegSpacingY/2) { 
-                         Composite.add(world, Bodies.circle(canvasWidth / 2, y, PEG_RADIUS, pegOptions));
-                    }
-                }
-                return;
-            }
+document.addEventListener("keydown",e=>{
+  if(e.target.tagName==="INPUT"||e.metaKey||e.ctrlKey||e.altKey) return;
+  const k=e.key.toLowerCase();
+  if(k===" "){ e.preventDefault(); setAuto(!auto); }
+  else if(k==="d"){ pending++; }
+  else if(k==="p"){ btnPause.click(); }
+  else if(k==="r"){ $("btnReset").click(); }
+});
 
-            for (let row = 0; row < NUM_PEG_ROWS; row++) {
-                const y = firstPegRowY + row * pegSpacingY;
-                if (y > canvasHeight - binHeight - WALL_THICKNESS - PEG_RADIUS || y < firstPegRowY - pegSpacingY / 2) continue; 
-                
-                let numPegsInRow;
-                let rowStartX; 
+window.addEventListener("resize",()=>{ plotDirty=true; drawBackground(); drawForeground(); });
+if(window.ResizeObserver){
+  const ro=new ResizeObserver(()=>{ plotDirty=true; });
+  ro.observe(plotCv); ro.observe(boardCv);
+}
 
-                if (row % 2 === 0) { // Even rows (0, 2, 4...) - typically more pegs or same as staggered
-                    numPegsInRow = Math.floor(usableWidth / optimalPegHorizSpacing) + 1;
-                    if (numPegsInRow <= 0 && usableWidth > 0) numPegsInRow = 1; else if (numPegsInRow <= 0) continue;
-                    const totalPegsContentWidth = (numPegsInRow - 1) * optimalPegHorizSpacing;
-                    rowStartX = WALL_THICKNESS + PEG_RADIUS + (usableWidth - totalPegsContentWidth) / 2;
-                } else { // Odd rows (1, 3, 5...) - staggered, often one less peg if space is tight
-                    let effectiveUsableWidthForStaggered = usableWidth - optimalPegHorizSpacing; // Account for the half-space offset
-                    if (effectiveUsableWidthForStaggered < 0) effectiveUsableWidthForStaggered = 0;
+/* ==========================================================================
+   11.  Go
+   ========================================================================== */
 
-                    numPegsInRow = Math.floor(effectiveUsableWidthForStaggered / optimalPegHorizSpacing) + 1;
-                    if (numPegsInRow <= 0 && usableWidth > optimalPegHorizSpacing/2) numPegsInRow = 1; else if (numPegsInRow <= 0) continue;
-                    
-                    const totalPegsContentWidth = (numPegsInRow - 1) * optimalPegHorizSpacing;
-                    // Start X for staggered row is offset by half spacing, then centered within remaining space
-                    rowStartX = WALL_THICKNESS + PEG_RADIUS + (optimalPegHorizSpacing / 2) + (effectiveUsableWidthForStaggered - totalPegsContentWidth) / 2;
-                }
+buildGeometry();
+resetGrid();
+resetStats();
+setAuto(true);
+drawStats();
+requestAnimationFrame(frame);
 
-                for (let col = 0; col < numPegsInRow; col++) {
-                    let x;
-                    if (numPegsInRow === 1) { 
-                        x = canvasWidth / 2;
-                    } else {
-                        x = rowStartX + col * optimalPegHorizSpacing;
-                    }
-                    
-                    // Safety check, slightly more lenient to allow pegs closer to calculated edge
-                    if (x < WALL_THICKNESS + PEG_RADIUS * 0.5 || x > canvasWidth - WALL_THICKNESS - PEG_RADIUS * 0.5) {
-                        continue; 
-                    }
-                    Composite.add(world, Bodies.circle(x, y, PEG_RADIUS, pegOptions));
-                }
-            }
-        }
+/* Console handle. `galton.batch(m)` runs m balls one at a time with no
+   rendering and no crowding and returns the bin counts, which is the quickest
+   way to characterise a setting without waiting for the board. */
+window.galton=window.__galton={P,balls,get counts(){return counts},get total(){return total},ST,
+  setAuto,computeStats,fullReset,G,buildGeometry,resetGrid,
+  burst(k){ pending+=k; },
+  /* drop `m` independent balls with no rendering and no crowding; used to
+     characterise the board without the interference of a busy run */
+  batch(m){
+    const savedBB=P.ballBall, savedBalls=balls.slice();
+    const savedCounts=counts.slice(), savedTotal=total;
+    P.ballBall=false; balls.length=0;
+    const c=new Int32Array(G.n+1);
+    let escaped=0, tSum=0;
+    for(let i=0;i<m;i++){
+      balls.length=0; spawn();
+      const b=balls[0];
+      let t=0;
+      while(!b.rec && t<25){ step(DT); t+=DT; }
+      if(b.rec){ c[b.bin]++; tSum+=t; } else escaped++;
+    }
+    balls.length=0; for(const b of savedBalls) balls.push(b);
+    P.ballBall=savedBB; counts=savedCounts; total=savedTotal; statsDirty=true;
+    return {counts:Array.from(c), stuck:escaped, meanTransit:tSum/Math.max(1,m-escaped)};
+  }};
 
-        function dropBall() {
-            if (!world) return; // Prevent errors if world not initialized
-            const dropX = canvasWidth / 2 + (Math.random() - 0.5) * (topFunnelWidthEntry * 0.3); 
-            const dropY = firstPegRowY - topFunnelHeight - FUNNEL_WALL_THICKNESS - BALL_RADIUS * 3; 
-
-            const ball = Bodies.circle(dropX, dropY, BALL_RADIUS, {
-                restitution: BALL_RESTITUTION,
-                friction: BALL_FRICTION,
-                density: BALL_DENSITY, 
-                render: { fillStyle: COLOR_BALL },
-            });
-            Composite.add(world, ball);
-            ballCounter++;
-            updateBallCountDisplay();
-        }
-
-        function startAutoDrop() {
-            if (ballDropIntervalId === null) {
-                ballDropIntervalId = setInterval(dropBall, 250); 
-                startAutoDropBtn.disabled = true;
-                stopAutoDropBtn.disabled = false;
-            }
-        }
-
-        function stopAutoDrop() {
-            if (ballDropIntervalId !== null) {
-                clearInterval(ballDropIntervalId);
-                ballDropIntervalId = null;
-                startAutoDropBtn.disabled = false;
-                stopAutoDropBtn.disabled = true;
-            }
-        }
-
-        function resetSimulationBoard() { 
-            if (!world) return; // Prevent errors if world not initialized
-            stopAutoDrop();
-            const bodiesToRemove = Composite.allBodies(world).filter(body => !body.isStatic);
-            bodiesToRemove.forEach(body => Composite.remove(world, body));
-            
-            ballCounter = 0;
-            updateBallCountDisplay();
-        }
-        
-        function updateBallCountDisplay() {
-            ballCountDisplay.textContent = `Balls: ${ballCounter}`;
-        }
-        
-        function handleWindowResize() {
-            setupSimulation(); 
-        }
-
-        // --- Initialization ---
-        document.addEventListener('DOMContentLoaded', () => {
-            setupSimulation(); 
-
-            addBallBtn.onclick = () => dropBall();
-            add10BallsBtn.onclick = () => {
-                for (let i = 0; i < 10; i++) {
-                    setTimeout(() => dropBall(), i * 50); 
-                }
-            };
-            startAutoDropBtn.onclick = startAutoDrop;
-            stopAutoDropBtn.onclick = stopAutoDrop;
-            resetBtn.onclick = resetSimulationBoard;
-
-            window.addEventListener('resize', debounce(handleWindowResize, 250));
-        });
-    </script>
+})();
+</script>
 </body>
 </html>
