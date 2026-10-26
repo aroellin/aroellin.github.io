@@ -56,7 +56,9 @@ My publications can be found on [Google Scholar](https://scholar.google.com.sg/c
 * [Galton board simulation](apps/galton/): An interactive physics simulation illustrating the emergence of the normal distribution.
 * [Guess the Rule](apps/guess-the-rule/): Test number sequences and try to uncover the hidden rule.
 * [Interactive regression game](apps/regression/): Fit a line to training data and see how well it predicts new observations.
+* [Ghoniem, Fekete and Castagliola (2004)](apps/ghoniem2004/): _A Comparison of the Readability of Graphs Using Node-Link and Matrix-Based Representations_.
 
+]
 ## A less serious, but important piece of research nonetheless...
 
 * A. Röllin and M. Zilversmit. [A Test in discernment of Scotch whiskey and Cognac brandy among untrained tasters](/doc/whiskycognac.pdf). 
