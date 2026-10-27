@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sorting node attributes beside a matrix</title>
+<style>
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#182b3c;background:#fff;font-size:15px}*{box-sizing:border-box}body{margin:0;padding:22px 24px;max-width:1440px;margin-inline:auto}h1{font-size:26px;font-weight:650;margin:0 0 10px}p{line-height:1.5;margin:8px 0}.task{font-size:18px;padding:12px 16px;background:#edf3f8;border-left:4px solid #4477aa;margin:16px 0}.tag{font-size:13px;color:#4c5d69}.controls{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:13px 0}button{font:inherit;cursor:pointer;border:1px solid #9aaeba;background:#fff;color:#182b3c;border-radius:5px;padding:7px 12px}button:hover{background:#edf3f8}button:focus-visible,input:focus-visible{outline:3px solid #b36b00;outline-offset:2px}.controls label{margin-left:8px;cursor:pointer}#status{font-weight:600;color:#335b80}#answer{min-height:26px;font-weight:600;color:#185331}.legend{font-size:13px;color:#425969;display:flex;gap:20px;flex-wrap:wrap;margin:10px 0}.swatch{display:inline-block;width:12px;height:12px;background:#4477aa;vertical-align:-1px;margin-right:5px}.swatch.hover{background:rgba(25,170,75,.5)}.scroll{overflow-x:auto;max-width:100%;border:1px solid #bac8d1;border-radius:6px;margin:12px 0}table{border-collapse:separate;border-spacing:0;table-layout:fixed;width:1246px}caption{text-align:left;padding:10px 12px;background:#f4f7fa;font-weight:600}th,td{padding:0;position:relative;height:28px;text-align:center;font-size:12px;border-bottom:1px solid #e5ebef}thead th{height:104px;vertical-align:bottom;background:#f6f8fa;border-bottom:1px solid #aebfca}th.account{width:100px;text-align:left;padding-left:9px}thead th.account{vertical-align:bottom;padding-bottom:11px}.matrix-col{width:28px;min-width:28px}thead th.matrix-col>button{writing-mode:vertical-rl;transform:rotate(180deg);height:94px;width:28px;padding:6px 4px;font-size:12px;border:0;background:transparent;border-radius:0;text-align:left}td.cell{border-right:1px solid #dfe6ec;background:#fff}td.cell.edge{background:#4477aa}td.cell.diagonal{background:#e9eef2}td.cell.active::after{content:"";position:absolute;inset:0;background:rgba(25,170,75,.5);pointer-events:none;z-index:2}th.type,td.type{width:90px;border-left:3px solid #fff}th.continent,td.continent{width:120px}th.numeric,td.numeric{width:122px}thead th.attribute>button{width:100%;height:100%;border:0;border-radius:0;padding:0 5px 11px;display:flex;align-items:flex-end;justify-content:center;font-size:13px;font-weight:600}thead th.sorted{background:#dce9f4}thead th.sorted>button{background:transparent;color:#163f67}.name{height:27px;width:100%;border:0;border-radius:0;padding:0 7px;text-align:left;font-size:12px}.selected .name{background:#dce9f4;color:#123f67;font-weight:700}.selected td.attribute{box-shadow:inset 0 1px #4477aa,inset 0 -1px #4477aa}.europe .name,.europe td.continent{background:#e0f1e5}.winner .name,.winner td.continent,.winner td.likes{background:#d6eddd;font-weight:700}.bar-track{height:24px;margin:2px 6px;position:relative;background:#f3f6f9;text-align:left}.bar{position:absolute;inset:2px auto 2px 0;background:#bfd2e4}.value{position:relative;display:block;line-height:24px;text-align:right;padding-right:5px;font-variant-numeric:tabular-nums;color:#102b41}.row-hover td.attribute,.row-hover .name{background:#e8f4eb}#selection{font-size:13px;min-height:22px;color:#425969}details{margin-top:14px;font-size:13px;line-height:1.5}summary{cursor:pointer}a{color:#245c8c}footer{font-size:13px;margin-top:14px;color:#425969}@media(max-width:700px){body{padding:15px 12px}h1{font-size:22px}}@media print{.controls,#selection{display:none}.scroll{overflow:visible;border:0}body{max-width:none;padding:0}table{width:100%}th.numeric,td.numeric{width:9%}details{display:block}}
+</style>
+</head>
+<body>
+<h1>Sorting node attributes beside a matrix</h1>
+<p class="tag">Week 11 · Constructed teaching example inspired by Nobre et al. (2020)</p>
+<p class="task"><strong>Question:</strong> Which European person or institution has the fewest likes?</p>
+<p>Click an attribute heading on the right to sort. Click it again to reverse the order. The account’s attributes, matrix row and matrix column move together.</p>
+<div class="controls">
+<button id="likes-sort" type="button">Likes ↑</button>
+<button id="group-sort" type="button">Group by continent, then likes ↑</button>
+<label><input id="europe" type="checkbox"> Highlight Europe</label>
+<button id="reveal" type="button">Reveal answer</button>
+<button id="reset" type="button">Reset</button>
+</div>
+<p id="status" role="status" aria-live="polite"></p>
+<p id="answer" role="status" aria-live="polite"></p>
+<div class="legend"><span><span class="swatch"></span>Link present</span><span>White cell: no link · Grey diagonal: same account</span><span><span class="swatch hover"></span>Hovered row and column</span></div>
+<div class="scroll" tabindex="0" aria-label="Scrollable adjacency matrix and sortable attribute table">
+<table id="network-table">
+<caption id="caption"></caption>
+<colgroup id="columns"></colgroup>
+<thead id="table-head"></thead>
+<tbody id="table-body"></tbody>
+</table>
+</div>
+<p id="selection">Click an account name to keep it selected while sorting. Hover over a matrix cell to shade its whole row and column.</p>
+<p>Bars start at a common baseline within each attribute column. Their scales stay fixed when sorting; the numbers give exact values. Sorting changes the display order; every link and attribute stays attached to the same account.</p>
+<details>
+<summary>Data, attribute definitions and relationship to the paper</summary>
+<p>All account names, counts, categories and links on this page are invented. Each node is a fictional account; each undirected, unweighted link is an invented interaction. There are no self-links. Following counts accounts followed; followers counts accounts following; tweets counts posts; likes is the assigned count used for the question. These four account attributes are independent of this small graph’s degrees.</p>
+<p>The paper places an attribute table beside a matrix and keeps the table rows aligned with matrix rows. Its matrix supports sorting by attributes, labels, neighbourhood and a seriation algorithm (an algorithm that finds a row order). This page illustrates sorting by attributes. It deliberately uses the same account order on both matrix axes and provides an added continent-then-likes sort. It is a reconstruction of this interaction with different data, rather than the original study application or an experiment on participants.</p>
+<p>Reference: Nobre et al. (2020), <em>Evaluating Multivariate Network Visualization Techniques Using a Validated Design and Crowdsourcing Approach</em>, matrix design and supplementary Task 2. <a href="https://doi.org/10.1145/3313831.3376381">Paper</a> · <a href="https://github.com/visdesignlab/mvnv-study">Authors’ application repository</a>.</p>
+</details>
+<footer>This page works offline. It does not collect or transmit responses.</footer>
+<script id="network-data" type="application/json">{"nodes": [{"id": "n01", "name": "Ada", "type": "Person", "continent": "Europe", "following": 84, "followers": 340, "tweets": 260, "likes": 30}, {"id": "n02", "name": "AtlasLab", "type": "Institution", "continent": "Europe", "following": 220, "followers": 980, "tweets": 670, "likes": 120}, {"id": "n03", "name": "Bo", "type": "Person", "continent": "Asia", "following": 65, "followers": 140, "tweets": 115, "likes": 15}, {"id": "n04", "name": "Cleo", "type": "Person", "continent": "North America", "following": 430, "followers": 760, "tweets": 840, "likes": 200}, {"id": "n05", "name": "Dion", "type": "Person", "continent": "Oceania", "following": 160, "followers": 210, "tweets": 75, "likes": 45}, {"id": "n06", "name": "ElmLab", "type": "Institution", "continent": "Europe", "following": 55, "followers": 180, "tweets": 390, "likes": 8}, {"id": "n07", "name": "Farah", "type": "Person", "continent": "Africa", "following": 170, "followers": 620, "tweets": 430, "likes": 75}, {"id": "n08", "name": "Gale", "type": "Person", "continent": "South America", "following": 340, "followers": 470, "tweets": 820, "likes": 60}, {"id": "n09", "name": "Iris", "type": "Person", "continent": "Europe", "following": 110, "followers": 280, "tweets": 190, "likes": 30}, {"id": "n10", "name": "Juno", "type": "Person", "continent": "Asia", "following": 640, "followers": 1200, "tweets": 910, "likes": 170}, {"id": "n11", "name": "Kai", "type": "Person", "continent": "North America", "following": 92, "followers": 80, "tweets": 140, "likes": 12}, {"id": "n12", "name": "Lin", "type": "Person", "continent": "Asia", "following": 270, "followers": 510, "tweets": 610, "likes": 95}, {"id": "n13", "name": "Maya", "type": "Person", "continent": "South America", "following": 140, "followers": 390, "tweets": 280, "likes": 50}, {"id": "n14", "name": "Nuru", "type": "Person", "continent": "Africa", "following": 32, "followers": 95, "tweets": 65, "likes": 2}, {"id": "n15", "name": "Orion", "type": "Institution", "continent": "Europe", "following": 510, "followers": 1450, "tweets": 1100, "likes": 240}, {"id": "n16", "name": "Sora", "type": "Person", "continent": "Asia", "following": 48, "followers": 115, "tweets": 220, "likes": 3}], "edges": [{"source": "n01", "target": "n02"}, {"source": "n01", "target": "n03"}, {"source": "n01", "target": "n06"}, {"source": "n01", "target": "n09"}, {"source": "n02", "target": "n06"}, {"source": "n02", "target": "n15"}, {"source": "n03", "target": "n04"}, {"source": "n03", "target": "n10"}, {"source": "n03", "target": "n12"}, {"source": "n04", "target": "n05"}, {"source": "n04", "target": "n11"}, {"source": "n05", "target": "n08"}, {"source": "n05", "target": "n16"}, {"source": "n06", "target": "n09"}, {"source": "n06", "target": "n15"}, {"source": "n07", "target": "n08"}, {"source": "n07", "target": "n13"}, {"source": "n07", "target": "n14"}, {"source": "n08", "target": "n13"}, {"source": "n09", "target": "n15"}, {"source": "n10", "target": "n12"}, {"source": "n10", "target": "n16"}, {"source": "n11", "target": "n12"}, {"source": "n11", "target": "n14"}, {"source": "n12", "target": "n16"}, {"source": "n13", "target": "n14"}]}</script>
+<script>
+'use strict';
+const data=JSON.parse(document.getElementById('network-data').textContent);
+const numericKeys=['following','followers','tweets','likes'];
+const attributes=[['type','Type'],['continent','Continent'],['following','Following'],['followers','Followers'],['tweets','Tweets'],['likes','Likes']];
+const byId=new Map(data.nodes.map((n,i)=>[n.id,{...n,inputIndex:i}]));
+const edgeKey=(a,b)=>[a,b].sort().join('|');
+const links=new Set(data.edges.map(e=>edgeKey(e.source,e.target)));
+const maxima=Object.fromEntries(numericKeys.map(k=>[k,Math.max(...data.nodes.map(n=>n[k]))]));
+const state={sort:[],selected:null,revealed:false,europe:false,hover:null};
+const el=id=>document.getElementById(id);
+const make=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
+function orderedNodes(){
+ return data.nodes.map(n=>byId.get(n.id)).sort((a,b)=>{
+  for(const {key,direction} of state.sort){
+   const difference=numericKeys.includes(key)?a[key]-b[key]:a[key].localeCompare(b[key],'en');
+   if(difference)return direction*difference;
+  }
+  return a.inputIndex-b.inputIndex;
+ });
+}
+function answerNodes(){
+ const candidates=data.nodes.filter(n=>n.continent==='Europe');
+ const minimum=Math.min(...candidates.map(n=>n.likes));
+ return candidates.filter(n=>n.likes===minimum);
+}
+function setSort(keys){state.sort=keys;state.hover=null;render();}
+function sortColumn(key){
+ const direction=state.sort.length===1&&state.sort[0].key===key?-state.sort[0].direction:1;
+ setSort([{key,direction}]);
+}
+function selectNode(id){state.selected=state.selected===id?null:id;render();}
+function highlight(rowId,colId){
+ state.hover=rowId?{rowId,colId}:null;
+ for(const tr of el('table-body').children){
+  tr.classList.toggle('row-hover',tr.dataset.id===rowId);
+  for(const td of tr.children){
+   if(td.classList.contains('cell'))td.classList.toggle('active',td.dataset.row===rowId||td.dataset.col===colId);
+  }
+ }
+}
+function render(){
+ const order=orderedNodes();
+ const winners=new Set(state.revealed?answerNodes().map(n=>n.id):[]);
+ el('caption').textContent=`${data.nodes.length} fictional accounts · ${data.edges.length} undirected links · Node attributes →`;
+ el('status').textContent='Order: '+(state.sort.length?state.sort.map(s=>(attributes.find(a=>a[0]===s.key)||[s.key,'Account'])[1]+(s.direction===1?' ↑':' ↓')).join(', then '):'original input order');
+ el('answer').textContent=state.revealed?answerNodes().map(n=>`${n.name} (${n.type}, ${n.continent}): ${n.likes} likes`).join('; '):'Answer hidden. Sort the likes column and inspect the continent entries.';
+ el('europe').checked=state.europe;
+ el('reveal').textContent=state.revealed?'Hide answer':'Reveal answer';
+ el('columns').replaceChildren();
+ for(const cls of ['account',...order.map(()=> 'matrix-col'),...attributes.map(([k])=>numericKeys.includes(k)?'numeric':k)])el('columns').append(make('col',undefined,cls));
+ const heading=make('tr');
+ const nameHead=make('th',undefined,'account attribute');
+ const nameBtn=make('button','Account'+(state.sort[0]?.key==='name'?(state.sort[0].direction===1?' ↑':' ↓'):''));
+ nameBtn.type='button';nameBtn.addEventListener('click',()=>sortColumn('name'));nameHead.append(nameBtn);heading.append(nameHead);
+ for(const n of order){
+  const th=make('th',undefined,'matrix-col');th.scope='col';th.dataset.id=n.id;
+  const btn=make('button',n.name);btn.type='button';btn.title=`Highlight ${n.name}'s row and column`;
+  btn.addEventListener('mouseenter',()=>highlight(n.id,n.id));btn.addEventListener('mouseleave',()=>highlight(null,null));
+  btn.addEventListener('focus',()=>highlight(n.id,n.id));btn.addEventListener('blur',()=>highlight(null,null));btn.addEventListener('click',()=>selectNode(n.id));
+  th.append(btn);heading.append(th);
+ }
+ for(const [key,label] of attributes){
+  const sortIndex=state.sort.findIndex(s=>s.key===key);
+  const th=make('th',undefined,`attribute ${numericKeys.includes(key)?'numeric':key}${sortIndex>=0?' sorted':''}`);th.scope='col';th.dataset.key=key;
+  th.setAttribute('aria-sort',sortIndex===0?(state.sort[0].direction===1?'ascending':'descending'):'none');
+  const arrow=sortIndex>=0?(state.sort[sortIndex].direction===1?' ↑':' ↓'): ' ↕';
+  const btn=make('button',label+arrow);btn.type='button';btn.title=`Sort by ${label.toLowerCase()}`;btn.addEventListener('click',()=>sortColumn(key));th.append(btn);heading.append(th);
+ }
+ el('table-head').replaceChildren(heading);
+ const rows=[];
+ for(const n of order){
+  const tr=make('tr');tr.dataset.id=n.id;
+  tr.classList.toggle('selected',n.id===state.selected);tr.classList.toggle('europe',state.europe&&n.continent==='Europe');tr.classList.toggle('winner',winners.has(n.id));
+  const th=make('th',undefined,'account');th.scope='row';const btn=make('button',n.name,'name');btn.type='button';btn.setAttribute('aria-pressed',String(n.id===state.selected));btn.addEventListener('click',()=>selectNode(n.id));th.append(btn);tr.append(th);
+  for(const column of order){
+   const linked=links.has(edgeKey(n.id,column.id));
+   const td=make('td',undefined,'cell'+(n.id===column.id?' diagonal':linked?' edge':''));td.dataset.row=n.id;td.dataset.col=column.id;
+   td.title=n.id===column.id?`${n.name}: same account`:`${n.name} — ${column.name}: ${linked?'link present':'no link'}`;
+   td.setAttribute('aria-label',td.title);
+   td.addEventListener('mouseenter',()=>highlight(n.id,column.id));td.addEventListener('mouseleave',()=>highlight(null,null));tr.append(td);
+  }
+  for(const [key] of attributes){
+   const td=make('td',undefined,`attribute ${numericKeys.includes(key)?'numeric '+key:key}`);td.dataset.key=key;
+   if(numericKeys.includes(key)){
+    const track=make('div',undefined,'bar-track');const bar=make('span',undefined,'bar');bar.style.width=`${100*n[key]/maxima[key]}%`;bar.setAttribute('aria-hidden','true');
+    const value=make('span',n[key].toLocaleString('en-US'),'value');track.append(bar,value);td.append(track);
+   }else td.textContent=n[key];
+   tr.append(td);
+  }
+  rows.push(tr);
+ }
+ el('table-body').replaceChildren(...rows);
+ const selected=byId.get(state.selected);
+ el('selection').textContent=selected?`Selected: ${selected.name} · ${selected.type} · ${selected.continent} · ${selected.likes} likes. The selection follows the account when sorting.`:'Click an account name to keep it selected while sorting. Hover over a matrix cell to shade its whole row and column.';
+}
+el('likes-sort').addEventListener('click',()=>setSort([{key:'likes',direction:1}]));
+el('group-sort').addEventListener('click',()=>setSort([{key:'continent',direction:1},{key:'likes',direction:1}]));
+el('europe').addEventListener('change',e=>{state.europe=e.target.checked;render();});
+el('reveal').addEventListener('click',()=>{state.revealed=!state.revealed;render();});
+el('reset').addEventListener('click',()=>{Object.assign(state,{sort:[],selected:null,revealed:false,europe:false,hover:null});render();});
+el('table-body').addEventListener('mouseleave',()=>highlight(null,null));
+render();
+</script>
+</body>
+</html>

@@ -57,6 +57,8 @@ My publications can be found on [Google Scholar](https://scholar.google.com.sg/c
 * [Guess the Rule](apps/guess-the-rule/): Test number sequences and try to uncover the hidden rule.
 * [Interactive regression game](apps/regression/): Fit a line to training data and see how well it predicts new observations.
 * [Ghoniem, Fekete and Castagliola (2004)](apps/ghoniem2004/): _A Comparison of the Readability of Graphs Using Node-Link and Matrix-Based Representations_.
+* [Nobre et al. (2020)](apps/nobre2020/): _Evaluating Multivariate Network Visualization Techniques Using a Validated Design and Crowdsourcing Approach_.
+
 
 ## A less serious, but important piece of research nonetheless...
 
